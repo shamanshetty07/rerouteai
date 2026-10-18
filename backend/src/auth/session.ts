@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 export const SESSION_COOKIE = "session";
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
+const HEADER = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
 
 function secret(): string {
   const value = process.env["SESSION_SECRET"];
@@ -9,27 +10,42 @@ function secret(): string {
   return value;
 }
 
-function sign(payload: string): string {
-  return createHmac("sha256", secret()).update(payload).digest("base64url");
+function sign(data: string): string {
+  return createHmac("sha256", secret()).update(data).digest("base64url");
 }
 
-/** Token format: `<userId>.<expiresAtMs>.<signature>` */
+/** Issues an HS256 JWT whose `sub` is the user id. */
 export function createSessionToken(userId: number): string {
-  const payload = `${userId}.${Date.now() + MAX_AGE_SECONDS * 1000}`;
-  return `${payload}.${sign(payload)}`;
+  const now = Math.floor(Date.now() / 1000);
+  const payload = Buffer.from(
+    JSON.stringify({ sub: String(userId), iat: now, exp: now + MAX_AGE_SECONDS }),
+  ).toString("base64url");
+  const data = `${HEADER}.${payload}`;
+  return `${data}.${sign(data)}`;
 }
 
 /** Returns the user id, or null if the token is malformed, forged or expired. */
 export function verifySessionToken(token: string | undefined): number | null {
   const parts = token?.split(".");
   if (parts?.length !== 3) return null;
-  const [id, expiresAt, signature] = parts as [string, string, string];
+  const [header, payload, signature] = parts as [string, string, string];
 
-  const expected = Buffer.from(sign(`${id}.${expiresAt}`));
+  // Only accept the exact header we issue, which rules out `alg: none` and algorithm swaps.
+  if (header !== HEADER) return null;
+
+  const expected = Buffer.from(sign(`${header}.${payload}`));
   const actual = Buffer.from(signature);
   if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) return null;
-  if (Number(expiresAt) < Date.now()) return null;
-  return Number(id);
+
+  try {
+    const claims = JSON.parse(Buffer.from(payload, "base64url").toString());
+    const id = Number(claims.sub);
+    if (!Number.isInteger(id) || typeof claims.exp !== "number") return null;
+    if (claims.exp < Date.now() / 1000) return null;
+    return id;
+  } catch {
+    return null;
+  }
 }
 
 export const sessionCookieOptions = {

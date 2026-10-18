@@ -1,13 +1,13 @@
 import { randomBytes } from "node:crypto";
-import { Router, type Request, type RequestHandler, type Response } from "express";
-import { AuthError, authorizeUrl, completeOAuth, getUser, type AuthMode } from "./authservice.ts";
+import { Router, type RequestHandler, type Response } from "express";
+import { AuthError, authorizeUrl, completeOAuth, type AuthMode } from "./authservice.ts";
 import { NotImplementedError, isProvider, type ProviderName } from "./providers.ts";
+import { requireAuth } from "./middleware.ts";
 import {
   SESSION_COOKIE,
   createSessionToken,
   readCookie,
   sessionCookieOptions,
-  verifySessionToken,
 } from "./session.ts";
 
 const STATE_COOKIE = "oauth_state";
@@ -55,7 +55,7 @@ router.get("/auth/:provider/callback", async (req, res) => {
   try {
     const user = await completeOAuth(provider, mode, code, redirectUri(provider));
     res.cookie(SESSION_COOKIE, createSessionToken(user.id), sessionCookieOptions);
-    res.redirect("/me");
+    res.redirect("/profile");
   } catch (err) {
     sendAuthError(res, err);
   }
@@ -66,14 +66,9 @@ router.post("/auth/signout", (_req, res) => {
   res.status(204).end();
 });
 
-router.get("/me", async (req: Request, res: Response) => {
-  const userId = verifySessionToken(readCookie(req.headers.cookie, SESSION_COOKIE));
-  const user = userId === null ? null : await getUser(userId);
-  if (!user) {
-    res.status(401).json({ error: "Not signed in" });
-    return;
-  }
-  res.json({ id: user.id, email: user.email, name: user.name, provider: user.provider });
+router.get(["/profile", "/me"], requireAuth, (req, res) => {
+  const { id, email, name, provider } = req.user!;
+  res.json({ id, email, name, provider });
 });
 
 function sendAuthError(res: Response, err: unknown) {
