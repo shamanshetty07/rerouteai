@@ -1,6 +1,6 @@
 import { DEFAULT_LIMIT, searchStations } from "./searchStations.ts";
-import { mockStations } from "./mockStations.ts";
-import type { Station } from "./types.ts";
+import { mockStations } from "../../rail/mockStations.ts";
+import type { Station } from "../../rail/types.ts";
 
 /**
  * The only thing the autocomplete knows about where stations come from. An API-backed

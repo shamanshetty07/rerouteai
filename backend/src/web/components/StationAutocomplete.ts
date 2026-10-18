@@ -1,5 +1,5 @@
 import type { StationSource } from "../stations/stationSource.ts";
-import type { Station } from "../stations/types.ts";
+import type { Station } from "../../rail/types.ts";
 
 export type StationAutocompleteOptions = {
   /** Unique per field on the page; used to wire up label and ARIA ids. */

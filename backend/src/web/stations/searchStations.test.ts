@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mockStations } from "./mockStations.ts";
+import { mockStations } from "../../rail/mockStations.ts";
 import { searchStations } from "./searchStations.ts";
 
 const names = (query: string, limit?: number) => searchStations(mockStations, query, limit).map((s) => s.name);

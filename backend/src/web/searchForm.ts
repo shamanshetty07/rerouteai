@@ -1,6 +1,6 @@
 import { createStationAutocomplete, type StationAutocomplete } from "./components/StationAutocomplete.ts";
 import type { StationSource } from "./stations/stationSource.ts";
-import type { Station } from "./stations/types.ts";
+import type { Station } from "../rail/types.ts";
 
 export type SearchValues = { from: string; to: string; date: string };
 

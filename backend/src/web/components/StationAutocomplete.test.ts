@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { flush, mouseDown, optionNames, options, press, type } from "../../../test/dom.ts";
 import { mockStationSource, type StationSource } from "../stations/stationSource.ts";
-import type { Station } from "../stations/types.ts";
+import type { Station } from "../../rail/types.ts";
 import { createStationAutocomplete, type StationAutocomplete } from "./StationAutocomplete.ts";
 
 let field: StationAutocomplete;

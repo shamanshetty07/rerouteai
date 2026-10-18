@@ -61,6 +61,18 @@ const rows: [code: string, name: string, city: string][] = [
   ["MYS", "Mysuru Junction", "Mysuru"],
   ["ERS", "Ernakulam Junction", "Kochi"],
   ["TVC", "Thiruvananthapuram Central", "Thiruvananthapuram"],
+  // Intermediate halts used by the mock trains
+  ["RTM", "Ratlam Junction", "Ratlam"],
+  ["KOTA", "Kota Junction", "Kota"],
+  ["DHN", "Dhanbad Junction", "Dhanbad"],
+  ["GAYA", "Gaya Junction", "Gaya"],
+  ["DDU", "Pt. Deen Dayal Upadhyaya Junction", "Mughalsarai"],
+  ["RKMP", "Rani Kamalapati", "Bhopal"],
+  ["ET", "Itarsi Junction", "Itarsi"],
+  ["LDH", "Ludhiana Junction", "Ludhiana"],
+  ["SUR", "Solapur", "Solapur"],
+  ["DD", "Daund Junction", "Daund"],
+  ["BSL", "Bhusawal Junction", "Bhusawal"],
   ["CBE", "Coimbatore Junction", "Coimbatore"],
   ["MDU", "Madurai Junction", "Madurai"],
 ];

@@ -1,4 +1,4 @@
-import type { Station } from "./types.ts";
+import type { Station } from "../../rail/types.ts";
 
 export const DEFAULT_LIMIT = 8;
 
