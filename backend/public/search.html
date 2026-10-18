@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reroute · Train search</title>
+<style>
+  :root { --bg:#f7f7f5; --fg:#1c1c1a; --muted:#6b6b66; --card:#fff; --line:#dcdcd6; --accent:#1d4ed8; --err:#b42318; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#151514; --fg:#ececea; --muted:#9a9a94; --card:#1f1f1d; --line:#34342f; --accent:#6b93ff; --err:#ff8a7a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui, sans-serif; }
+  main { max-width:760px; margin:0 auto; padding:32px 16px; }
+  h1 { font-size:1.5rem; margin:0 0 20px; }
+  form { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px;
+         display:grid; gap:16px; grid-template-columns:1fr 1fr; }
+  .full { grid-column:1 / -1; }
+  @media (max-width:560px) { form { grid-template-columns:1fr; } }
+  label { display:block; font-size:.875rem; color:var(--muted); margin-bottom:4px; }
+  input { width:100%; padding:10px 12px; font:inherit; color:var(--fg); background:var(--bg);
+          border:1px solid var(--line); border-radius:8px; }
+  input:focus-visible, button:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+  input[aria-invalid="true"] { border-color:var(--err); }
+  .field { position:relative; }
+  .station-field { position:relative; min-width:0; }
+  .station-input-wrap { position:relative; }
+  .station-input-wrap input { padding-right:36px; text-overflow:ellipsis; }
+  .station-clear { position:absolute; right:4px; top:50%; transform:translateY(-50%); width:28px; height:28px;
+                   padding:0; line-height:1; font-size:1.25rem; color:var(--muted); background:none; border-radius:6px; }
+  .station-clear:hover { color:var(--fg); background:var(--line); }
+  .station-options { position:absolute; z-index:10; left:0; right:0; top:100%; margin:4px 0 0; padding:4px;
+                     list-style:none; background:var(--card); border:1px solid var(--line); border-radius:8px;
+                     max-height:min(320px, 50vh); overflow:auto; box-shadow:0 8px 24px rgb(0 0 0 / .15); }
+  .station-options[hidden] { display:none; }
+  .station-option { display:flex; flex-direction:column; padding:8px 10px; border-radius:6px; cursor:pointer; }
+  .station-name { font-weight:500; overflow-wrap:anywhere; }
+  .station-sub { font-size:.8125rem; color:var(--muted); }
+  .station-option:hover { background:var(--line); }
+  .station-option.is-selected .station-name::after { content:" ✓"; color:var(--accent); }
+  .station-option[aria-selected="true"] { background:var(--accent); color:#fff; }
+  .station-option[aria-selected="true"] .station-sub, .station-option[aria-selected="true"] .station-name::after { color:inherit; opacity:.85; }
+  .station-option[aria-disabled="true"] { opacity:.5; cursor:not-allowed; }
+  .station-option[aria-disabled="true"]:hover { background:none; }
+  .station-empty { padding:8px 10px; color:var(--muted); }
+  .station-meta { margin:4px 0 0; min-height:1.25em; font-size:.8125rem; color:var(--muted); }
+  .station-error, .field-error { margin:4px 0 0; font-size:.8125rem; color:var(--err); }
+  .station-error[hidden], .field-error[hidden] { display:none; }
+  .visually-hidden { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+  .route { grid-column:1 / -1; display:grid; grid-template-columns:1fr auto 1fr; gap:12px; align-items:start; }
+  .swap { margin-top:26px; width:40px; height:40px; padding:0; font-size:1.125rem; background:var(--bg);
+          color:var(--fg); border:1px solid var(--line); border-radius:50%; }
+  .swap:hover { border-color:var(--accent); }
+  @media (max-width:560px) {
+    .route { grid-template-columns:1fr; }
+    .swap { margin:0 auto; transform:rotate(90deg); }
+  }
+  .signin-link { margin-right:12px; }
+  button { padding:10px 18px; font:inherit; color:#fff; background:var(--accent); border:0; border-radius:8px; cursor:pointer; }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  #status { margin:20px 0 8px; color:var(--muted); }
+  #status.error { color:var(--err); }
+  table { width:100%; border-collapse:collapse; background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  th, td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); font-size:.9375rem; }
+  th { color:var(--muted); font-weight:500; }
+  tr:last-child td { border-bottom:0; }
+  .scroll { overflow-x:auto; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Search trains</h1>
+
+  <form id="search-form" autocomplete="off" novalidate>
+    <div class="route">
+      <div data-station-field="from"></div>
+      <button type="button" class="swap" data-swap aria-label="Swap source and destination">⇄</button>
+      <div data-station-field="to"></div>
+    </div>
+    <div>
+      <label for="date">Date</label>
+      <input id="date" name="date" type="date" required aria-describedby="date-error">
+      <p class="field-error" id="date-error" data-date-error role="alert" hidden></p>
+    </div>
+    <div style="align-self:end">
+      <button id="submit" type="submit">Search trains</button>
+    </div>
+  </form>
+
+  <p id="status" role="status" aria-live="polite"></p>
+  <div class="scroll" id="results"></div>
+</main>
+
+<script type="module" src="/assets/search.js"></script>
+</body>
+</html>

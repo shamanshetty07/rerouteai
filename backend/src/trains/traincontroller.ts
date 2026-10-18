@@ -1,6 +1,7 @@
 import { Router, type Response } from "express";
 import { requireAuth } from "../auth/middleware.ts";
 import { RailRadarError, trainsBetween, type TrainsBetweenParams } from "./railradar.ts";
+import { isStation, searchStations } from "./stations.ts";
 
 const router = Router();
 
@@ -53,10 +54,24 @@ function sendError(res: Response, err: unknown) {
   }
 }
 
+/** GET /stations/search?q=new+del[&limit=8] -> [{ code, name }] */
+router.get("/stations/search", requireAuth, async (req, res) => {
+  try {
+    const limit = Math.min(Math.max(Number(req.query["limit"]) || 8, 1), 20);
+    res.json(await searchStations(text(req.query["q"]) ?? "", limit));
+  } catch (err) {
+    sendError(res, err);
+  }
+});
+
 /** GET /trains/search?from=NDLS&to=AGC&date=2026-10-25[&type=&category=&byCity=&live=] */
 router.get("/trains/search", requireAuth, async (req, res) => {
   try {
-    res.json(await trainsBetween(parseSearch(req.query)));
+    const params = parseSearch(req.query);
+    for (const code of [params.from, params.to]) {
+      if (!(await isStation(code))) throw new ValidationError(`Unknown station: ${code}`);
+    }
+    res.json(await trainsBetween(params));
   } catch (err) {
     sendError(res, err);
   }

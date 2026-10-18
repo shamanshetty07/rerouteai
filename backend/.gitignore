@@ -33,3 +33,6 @@ logs
 .claude/
 .cursor/
 .devin/
+
+# built frontend bundle
+public/assets

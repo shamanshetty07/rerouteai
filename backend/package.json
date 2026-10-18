@@ -4,8 +4,13 @@
   "type": "module",
   "private": true,
   "scripts": {
+    "build:web": "bun build src/web/search.ts --outdir public/assets --target browser --minify",
+    "predev": "bun run build:web",
     "dev": "bun --hot src/server/index.ts",
+    "prestart": "bun run build:web",
     "start": "bun src/server/index.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
     "contract:emit": "prisma contract emit",
     "postinstall": "prisma skills sync || exit 0"
   },
@@ -16,6 +21,7 @@
     "prisma": "8.0.0-rc.19"
   },
   "devDependencies": {
+    "@happy-dom/global-registrator": "^21.0.3",
     "@prisma/cli-engine": "0.6.2",
     "@types/bun": "latest",
     "@types/express": "^5.0.6",

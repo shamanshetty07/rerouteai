@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     // Environment setup & latest features
-    "lib": ["ESNext"],
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "target": "ESNext",
     "module": "preserve",
     "moduleDetection": "force",
@@ -27,6 +27,7 @@
     "noPropertyAccessFromIndexSignature": false,
     "resolveJsonModule": true,
     "types": [
+      "bun",
       "node"
     ]
   }
