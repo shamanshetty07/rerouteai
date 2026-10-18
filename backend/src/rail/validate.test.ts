@@ -164,8 +164,7 @@ describe("whole dataset", () => {
     const messages = validateStations([{ id: "X", code: "x1", name: "", city: " " }]).map((i) => i.message);
     expect(messages).toContain("name is required");
     expect(messages).toContain("city is required");
-    expect(messages).toContain(`invalid station code "x1"`);
-
+    expect(messages).toContain('invalid station code "x1"');
   });
 
   test("a station may omit its code", () => {

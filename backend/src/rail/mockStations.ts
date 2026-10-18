@@ -73,6 +73,7 @@ const rows: [code: string, name: string, city: string][] = [
   ["SUR", "Solapur", "Solapur"],
   ["DD", "Daund Junction", "Daund"],
   ["BSL", "Bhusawal Junction", "Bhusawal"],
+  ["BSP", "Bilaspur Junction", "Bilaspur"],
   ["CBE", "Coimbatore Junction", "Coimbatore"],
   ["MDU", "Madurai Junction", "Madurai"],
 ];
