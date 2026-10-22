@@ -47,46 +47,45 @@ function toSaved(row: Row): SavedJourney {
   };
 }
 
-const COLUMNS = (sql: Sql) => sql`id, created_at, to_char(travel_date, 'YYYY-MM-DD') AS travel_date, journey`;
-
 export type PostgresStoreOptions = { table?: string; /** Per-user cap; tests lower it. */ max?: number };
 
+// Each query spells out its own column list and takes its table name from the handle that runs it.
+// (Sharing fragments or identifier helpers between the pool and a transaction handle is what made an
+// earlier version of save() hang under concurrency.)
 export function createPostgresSavedJourneyStore(sql: Sql, { table = "saved_journeys", max = MAX_SAVED_PER_USER }: PostgresStoreOptions = {}): SavedJourneyStore {
-  async function findByKey(db: Sql, userId: number, key: string): Promise<SavedJourney | null> {
-    const [row] = await db`SELECT ${COLUMNS(sql)} FROM ${sql(table)} WHERE user_id = ${userId} AND journey_key = ${key}`;
-    return row ? toSaved(row as Row) : null;
-  }
-
   return {
     async save(userId, journey): Promise<SaveResult> {
       const key = journeyKey(journey);
       // De-duplication is guaranteed by the UNIQUE key. The cap needs a count-then-insert, so saves by
       // the same user are serialised with a transaction-scoped advisory lock; other users never wait.
-      return sql.begin(async (tx) => {
+      return sql.begin(async (tx): Promise<SaveResult> => {
         await tx`SELECT pg_advisory_xact_lock(hashtext(${table}), ${userId}::integer)`;
+        // The journey is passed as an object: the driver encodes it as JSON itself (a pre-stringified
+        // value would be stored as a JSON *string*, which the table's CHECK constraint refuses).
         const [row] = await tx`
-        INSERT INTO ${sql(table)}
-          (user_id, journey_key, source_id, source_name, destination_id, destination_name, travel_date,
-           departure_at, arrival_at, transfer_count, total_duration_minutes, journey)
-        -- The journey is passed as an object: the driver encodes it as JSON itself (a pre-stringified
-        -- value would be stored as a JSON *string*, which the table's CHECK constraint refuses).
-        SELECT ${userId}::integer, ${key}::text, ${journey.source.id}::text, ${journey.source.name}::text,
-               ${journey.destination.id}::text, ${journey.destination.name}::text, ${travelDateOf(journey)}::date,
-               ${journey.departure}::timestamptz, ${journey.arrival}::timestamptz, ${journey.transferCount}::smallint,
-               ${journey.totalDurationMinutes}::integer, ${journey}::jsonb
-        WHERE (SELECT count(*) FROM ${sql(table)} WHERE user_id = ${userId}) < ${max}
-        ON CONFLICT (user_id, journey_key) DO NOTHING
-        RETURNING ${COLUMNS(sql)}`;
-        if (row) return { kind: "created", saved: toSaved(row as Row) } as SaveResult;
+          INSERT INTO ${tx(table)}
+            (user_id, journey_key, source_id, source_name, destination_id, destination_name, travel_date,
+             departure_at, arrival_at, transfer_count, total_duration_minutes, journey)
+          SELECT ${userId}::integer, ${key}::text, ${journey.source.id}::text, ${journey.source.name}::text,
+                 ${journey.destination.id}::text, ${journey.destination.name}::text, ${travelDateOf(journey)}::date,
+                 ${journey.departure}::timestamptz, ${journey.arrival}::timestamptz, ${journey.transferCount}::smallint,
+                 ${journey.totalDurationMinutes}::integer, ${journey}::jsonb
+          WHERE (SELECT count(*) FROM ${tx(table)} WHERE user_id = ${userId}) < ${max}
+          ON CONFLICT (user_id, journey_key) DO NOTHING
+          RETURNING id, created_at, to_char(travel_date, 'YYYY-MM-DD') AS travel_date, journey`;
+        if (row) return { kind: "created", saved: toSaved(row as Row) };
         // Nothing inserted: either this exact journey is already saved, or the cap was hit.
-        const existing = await findByKey(tx as unknown as Sql, userId, key);
-        return (existing ? { kind: "exists", saved: existing } : { kind: "limit" }) as SaveResult;
+        const [existing] = await tx`
+          SELECT id, created_at, to_char(travel_date, 'YYYY-MM-DD') AS travel_date, journey
+          FROM ${tx(table)} WHERE user_id = ${userId} AND journey_key = ${key}`;
+        return existing ? { kind: "exists", saved: toSaved(existing as Row) } : { kind: "limit" };
       });
     },
 
     async list(userId) {
       const rows = await sql`
-        SELECT ${COLUMNS(sql)} FROM ${sql(table)} WHERE user_id = ${userId} ORDER BY created_at DESC, id`;
+        SELECT id, created_at, to_char(travel_date, 'YYYY-MM-DD') AS travel_date, journey
+        FROM ${sql(table)} WHERE user_id = ${userId} ORDER BY created_at DESC, id`;
       return (rows as Row[]).map(toSaved);
     },
 

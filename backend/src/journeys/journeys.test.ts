@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, describe, expect, test } from "bun:test";
+import { afterAll, afterEach, beforeAll, describe, expect, setDefaultTimeout, test } from "bun:test";
 import express from "express";
 import { randomBytes } from "node:crypto";
 import { send, serve } from "../../test/http.ts";
@@ -495,6 +495,9 @@ describe.skipIf(!testDbUrl)("PostgreSQL saved-journey store", () => {
   const table = `saved_jtest_${suffix}`;
   const sql = new Bun.SQL(testDbUrl ?? "postgres://unused", { max: 4 });
   let counter = 0;
+  // A remote database: every statement is a network round trip and a save is a four-statement
+  // transaction, so the 5 s default is too tight. A real hang still fails, just after 60 s.
+  setDefaultTimeout(60_000);
 
   beforeAll(async () => {
     await migrateUsersTable(sql, usersTable);
@@ -555,11 +558,21 @@ describe.skipIf(!testDbUrl)("PostgreSQL saved-journey store", () => {
                                  departure_at, arrival_at, transfer_count, total_duration_minutes, journey)
       VALUES (${u}, ${`k-${++counter}`}, 'A', 'A', 'B', 'B', '2026-10-20', '2026-10-20T10:00:00Z',
               ${over.arrival ?? "2026-10-20T12:00:00Z"}::timestamptz, ${over.transfers ?? 0}, 60, ${over.journey ?? {}}::jsonb)`;
+    // A Bun SQL query is a lazy thenable. Handing one straight to `expect(...).rejects` spins the CPU
+    // forever (Bun 1.4.2), so await it inside a real promise first.
+    const refused = async (query: PromiseLike<unknown>) => {
+      try {
+        await query;
+        return false;
+      } catch {
+        return true;
+      }
+    };
     await insert({}); // baseline: valid
-    await expect(insert({ transfers: 9 })).rejects.toThrow();
-    await expect(insert({ arrival: "2026-10-20T09:00:00Z" })).rejects.toThrow();
-    await expect(insert({ journey: [] })).rejects.toThrow();
-    await expect(insert({ journey: { x: "a".repeat(40_000) } })).rejects.toThrow();
+    expect(await refused(insert({ transfers: 9 }))).toBe(true);
+    expect(await refused(insert({ arrival: "2026-10-20T09:00:00Z" }))).toBe(true);
+    expect(await refused(insert({ journey: [] }))).toBe(true);
+    expect(await refused(insert({ journey: { x: "a".repeat(40_000) } }))).toBe(true);
   });
 
   test("concurrent saves of one journey create exactly one row", async () => {
