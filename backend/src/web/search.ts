@@ -6,7 +6,7 @@ const form = document.getElementById("search-form") as HTMLFormElement;
 const submit = document.getElementById("submit") as HTMLButtonElement;
 const statusEl = document.getElementById("status")!;
 const results = document.getElementById("results")!;
-const modeInput = () => form.querySelector<HTMLInputElement>('input[name="mode"]:checked')!;
+const modeInput = () => [...form.querySelectorAll<HTMLInputElement>('input[name="mode"]')].find((r) => r.checked)!;
 
 // Time and transfer limit only apply to alternative-journey search.
 function syncMode() {
@@ -103,7 +103,7 @@ async function searchAlternatives(values: SearchValues) {
       case "invalid":
         return setStatus(outcome.message, true);
       case "unavailable":
-        return setStatusWithRetry(`${outcome.message} Please try again shortly.`, () => void searchAlternatives(values));
+        return setStatusWithRetry(`${outcome.message.replace(/[.!]?$/, ".")} Please try again shortly.`, () => void searchAlternatives(values));
       case "error":
         return setStatusWithRetry(outcome.message, () => void searchAlternatives(values));
     }
