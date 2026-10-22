@@ -12,7 +12,7 @@ const script = `
 
 async function run(env: Record<string, string>) {
   const proc = Bun.spawn(["bun", "--no-env-file", "-e", script], {
-    env: { PATH: process.env["PATH"] ?? "", ...env },
+    env: { PATH: process.env["PATH"] ?? "", USER_STORE: "memory", ...env },
     stdout: "pipe",
     stderr: "pipe",
   });

@@ -3,6 +3,13 @@ import type { ProviderName } from "./providers.ts";
 /** OAuth providers plus "dev", which only the development login (devlogin.ts) ever uses. */
 export type UserProvider = ProviderName | "dev";
 
+/** Raised by `create` when that provider identity already has a user. */
+export class DuplicateUserError extends Error {
+  constructor() {
+    super("A user with this provider identity already exists");
+  }
+}
+
 export type User = {
   id: number;
   email: string;
@@ -11,7 +18,7 @@ export type User = {
   providerId: string;
 };
 
-/** Swap this for a Prisma-backed implementation once the contract emits. */
+/** A user is identified by (provider, providerId); email is informational and never used to link accounts. */
 export type UserStore = {
   findByProvider(provider: UserProvider, providerId: string): Promise<User | null>;
   findById(id: number): Promise<User | null>;
@@ -28,6 +35,9 @@ export function createMemoryUserStore(): UserStore {
       return users.find((u) => u.id === id) ?? null;
     },
     async create(data) {
+      if (users.some((u) => u.provider === data.provider && u.providerId === data.providerId)) {
+        throw new DuplicateUserError();
+      }
       const user = { id: users.length + 1, ...data };
       users.push(user);
       return user;
@@ -35,4 +45,28 @@ export function createMemoryUserStore(): UserStore {
   };
 }
 
-export const userStore: UserStore = createMemoryUserStore();
+/**
+ * PostgreSQL unless USER_STORE=memory. There is no silent fallback: a missing DATABASE_URL is an
+ * error, because users that quietly vanish on restart are worse than a server that complains.
+ * `bun test` selects the memory store in test/setup.ts, so unit tests never touch a database.
+ */
+export function selectUserStore(env: Record<string, string | undefined> = process.env): () => Promise<UserStore> {
+  let store: Promise<UserStore> | undefined;
+  return () =>
+    (store ??= (async () => {
+      if (env["USER_STORE"] === "memory") return createMemoryUserStore();
+      const url = env["DATABASE_URL"];
+      if (!url) throw new Error("DATABASE_URL is not set (or set USER_STORE=memory for throwaway in-memory users)");
+      const { createPostgresUserStore } = await import("./postgresuserstore.ts");
+      return createPostgresUserStore(new Bun.SQL(url, { max: 5 }));
+    })());
+}
+
+const resolve = selectUserStore();
+
+/** Resolves the real store on first use, so importing this module never connects to anything. */
+export const userStore: UserStore = {
+  findByProvider: async (provider, providerId) => (await resolve()).findByProvider(provider, providerId),
+  findById: async (id) => (await resolve()).findById(id),
+  create: async (data) => (await resolve()).create(data),
+};

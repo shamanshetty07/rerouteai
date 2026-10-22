@@ -10,6 +10,7 @@
     "prestart": "bun run build:web",
     "start": "bun src/server/index.ts",
     "test": "bun test",
+    "db:migrate": "bun scripts/migrate.ts",
     "typecheck": "tsc --noEmit",
     "contract:emit": "prisma contract emit",
     "postinstall": "prisma skills sync || exit 0"

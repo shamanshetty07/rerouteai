@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { SESSION_COOKIE, createSessionToken, sessionCookieOptions } from "./session.ts";
-import { userStore, type User } from "./userstore.ts";
+import { DuplicateUserError, userStore, type User } from "./userstore.ts";
 
 // Development-only sign-in for working on authenticated pages without OAuth credentials.
 // Off unless DEV_LOGIN=true, never allowed in production, and it signs in one fixed,
@@ -29,9 +29,16 @@ export function assertDevLoginSafe(env: Env = process.env) {
 }
 
 async function devUser(): Promise<User> {
-  return (
-    (await userStore.findByProvider(DEV_USER.provider, DEV_USER.providerId)) ?? (await userStore.create({ ...DEV_USER }))
-  );
+  const existing = await userStore.findByProvider(DEV_USER.provider, DEV_USER.providerId);
+  if (existing) return existing;
+  try {
+    return await userStore.create({ ...DEV_USER });
+  } catch (err) {
+    // A concurrent first login created it between our lookup and insert.
+    const created = err instanceof DuplicateUserError && (await userStore.findByProvider(DEV_USER.provider, DEV_USER.providerId));
+    if (created) return created;
+    throw err;
+  }
 }
 
 /** The peer's socket address, not the Host header, which any client can forge. */

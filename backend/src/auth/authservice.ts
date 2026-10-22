@@ -1,5 +1,5 @@
 import { providers, type OAuthProfile, type ProviderName } from "./providers.ts";
-import { userStore, type User } from "./userstore.ts";
+import { DuplicateUserError, userStore, type User } from "./userstore.ts";
 
 export type AuthMode = "signin" | "signup";
 
@@ -32,12 +32,18 @@ export async function completeOAuth(
   }
   if (existing) throw new AuthError("Account already exists, sign in instead", 409);
 
-  return userStore.create({
-    email: profile.email,
-    name: profile.name ?? null,
-    provider,
-    providerId: profile.providerId,
-  });
+  try {
+    return await userStore.create({
+      email: profile.email,
+      name: profile.name ?? null,
+      provider,
+      providerId: profile.providerId,
+    });
+  } catch (err) {
+    // Two simultaneous sign-ups for one identity: the database's unique key picks the winner.
+    if (err instanceof DuplicateUserError) throw new AuthError("Account already exists, sign in instead", 409);
+    throw err;
+  }
 }
 
 export function getUser(id: number): Promise<User | null> {
