@@ -11,9 +11,20 @@ function storeContract(name: string, make: () => Promise<UserStore>) {
     test("creates a user and finds it by id and by provider identity", async () => {
       const store = await make();
       const user = await store.create(alice);
-      expect(user).toEqual({ id: expect.any(Number), ...alice });
+      expect(user).toEqual({ id: expect.any(Number), ...alice, sessionVersion: 0 });
       expect(await store.findById(user.id)).toEqual(user);
       expect(await store.findByProvider("github", "gh-1")).toEqual(user);
+    });
+
+    test("revoking sessions bumps only that user's session version", async () => {
+      const store = await make();
+      const a = await store.create(alice);
+      const b = await store.create({ ...alice, providerId: "gh-2" });
+      await store.revokeSessions(a.id);
+      await store.revokeSessions(a.id);
+      expect((await store.findById(a.id))!.sessionVersion).toBe(2);
+      expect((await store.findById(b.id))!.sessionVersion).toBe(0);
+      await store.revokeSessions(987654321); // unknown id: nothing to do, no error
     });
 
     test("returns null for unknown users", async () => {

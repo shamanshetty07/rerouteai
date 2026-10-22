@@ -5,7 +5,8 @@ import { OAUTH_STATE_COOKIE, newOAuthState, openOAuthState, sameValue, sealOAuth
 import { ProviderError, isProvider, providers as defaultProviders, type ProviderName, type Providers } from "./providers.ts";
 import { requireAuth } from "./middleware.ts";
 import { safeNextPath } from "./redirect.ts";
-import { SESSION_COOKIE, createSessionToken, readCookie, sessionCookieOptions } from "./session.ts";
+import { SESSION_COOKIE, createSessionToken, readCookie, sessionCookieClearOptions, sessionCookieOptions, verifySession } from "./session.ts";
+import { userStore } from "./userstore.ts";
 
 type Env = Record<string, string | undefined>;
 export type AuthRouterOptions = {
@@ -83,16 +84,30 @@ export function createAuthRouter({ providers = defaultProviders, env = process.e
         { code, redirectUri: redirectUri(provider), codeVerifier: saved.verifier, nonce: saved.nonce },
         providers,
       );
-      res.cookie(SESSION_COOKIE, createSessionToken(user.id), sessionCookieOptions);
+      res.cookie(SESSION_COOKIE, createSessionToken(user.id, user.sessionVersion), sessionCookieOptions);
       res.redirect(saved.next);
     } catch (err) {
       sendAuthError(req, res, err, { provider, mode: saved.mode, next: saved.next });
     }
   });
 
-  router.post("/auth/signout", (_req, res) => {
-    res.clearCookie(SESSION_COOKIE);
-    res.status(204).end();
+  /**
+   * POST /auth/signout: clears the cookie and, when the request carried a valid session, revokes
+   * every session of that user (the JWT itself is stateless, so revocation is a version bump).
+   * Cross-site requests are rejected earlier by the CSRF middleware in server/security.ts.
+   */
+  router.post("/auth/signout", async (req, res, next) => {
+    try {
+      const header = req.headers.authorization;
+      const token = header?.startsWith("Bearer ") ? header.slice(7) : readCookie(req.headers.cookie, SESSION_COOKIE);
+      const session = verifySession(token);
+      const user = session ? await userStore.findById(session.userId) : null;
+      if (user && user.sessionVersion === session!.version) await userStore.revokeSessions(user.id);
+      res.clearCookie(SESSION_COOKIE, sessionCookieClearOptions);
+      res.status(204).end();
+    } catch (err) {
+      next(err);
+    }
   });
 
   router.get(["/profile", "/me"], requireAuth, (req, res) => {
@@ -117,4 +132,3 @@ function sendAuthError(req: Request, res: Response, err: unknown, ctx: Context) 
   }
 }
 
-export default createAuthRouter();

@@ -65,7 +65,7 @@ export function createDevLoginRouter(env: Env = process.env): Router {
       return;
     }
     const user = await devUser();
-    res.cookie(SESSION_COOKIE, createSessionToken(user.id), sessionCookieOptions);
+    res.cookie(SESSION_COOKIE, createSessionToken(user.id, user.sessionVersion), sessionCookieOptions);
     res.redirect(safeNextPath(req.query["next"]));
   });
 

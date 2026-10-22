@@ -5,10 +5,19 @@ import type { RailData } from "../rail/repository.ts";
 import { findAlternativeJourneys, RouteSearchError, type SearchOptions } from "../rail/routeSearch.ts";
 import { RailRadarError, trainsBetween, type TrainsBetweenParams } from "./railradar.ts";
 import { isStation, searchStations } from "./stations.ts";
+import { rateLimit } from "../server/security.ts";
 
 const router = Router();
 
 const STATION_CODE = /^[A-Z0-9]{1,5}$/;
+const FILTER = /^[A-Za-z0-9 _-]{1,32}$/;
+const MAX_QUERY_LENGTH = 100;
+
+// Per signed-in user. /trains/search spends RailRadar quota, so it gets the tightest budget.
+const perUser = (max: number) => rateLimit({ windowMs: 60_000, max, key: (req) => `user:${req.user?.id}` });
+const stationsLimit = perUser(120);
+const searchLimit = perUser(30);
+const alternativesLimit = perUser(60);
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 class ValidationError extends Error {}
@@ -35,6 +44,12 @@ function parseSearch(query: Record<string, unknown>): TrainsBetweenParams {
   const date = text(query["date"]);
   if (date && (!DATE.test(date) || Number.isNaN(Date.parse(date)))) {
     throw new ValidationError("date must be a valid YYYY-MM-DD");
+  }
+
+  // Free-text filters go to RailRadar and into the cache key, so keep them short and plain.
+  for (const name of ["type", "category"] as const) {
+    const v = text(query[name]);
+    if (v !== undefined && !FILTER.test(v)) throw new ValidationError(`${name} may only contain letters, digits, spaces, "_" and "-" (max 32)`);
   }
 
   return {
@@ -67,17 +82,19 @@ function sendError(res: Response, err: unknown) {
 }
 
 /** GET /stations/search?q=new+del[&limit=8] -> [{ code, name }] */
-router.get("/stations/search", requireAuth, async (req, res) => {
+router.get("/stations/search", requireAuth, stationsLimit, async (req, res) => {
   try {
+    const q = text(req.query["q"]) ?? "";
+    if (q.length > MAX_QUERY_LENGTH) throw new ValidationError("q is too long");
     const limit = Math.min(Math.max(Number(req.query["limit"]) || 8, 1), 20);
-    res.json(await searchStations(text(req.query["q"]) ?? "", limit));
+    res.json(await searchStations(q, limit));
   } catch (err) {
     sendError(res, err);
   }
 });
 
 /** GET /trains/search?from=NDLS&to=AGC&date=2026-10-25[&type=&category=&byCity=&live=] */
-router.get("/trains/search", requireAuth, async (req, res) => {
+router.get("/trains/search", requireAuth, searchLimit, async (req, res) => {
   try {
     const params = parseSearch(req.query);
     for (const code of [params.from, params.to]) {
@@ -121,6 +138,6 @@ export function alternativesHandler(rail: RailData): RequestHandler {
   };
 }
 
-router.get("/trains/alternatives", requireAuth, alternativesHandler(mockRailData));
+router.get("/trains/alternatives", requireAuth, alternativesLimit, alternativesHandler(mockRailData));
 
 export default router;

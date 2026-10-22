@@ -34,7 +34,7 @@ describe("real app wiring", () => {
   });
 
   test("production refuses to start with a missing, short or placeholder SESSION_SECRET, or a non-https BASE_URL", async () => {
-    const good = { NODE_ENV: "production", SESSION_SECRET: "s".repeat(40), BASE_URL: "https://reroute.example.com" };
+    const good = { NODE_ENV: "production", SESSION_SECRET: "s".repeat(40), BASE_URL: "https://reroute.example.com", USER_STORE: "postgres", DATABASE_URL: "postgresql://u:p@127.0.0.1:1/x" };
     expect((await run(good)).stdout).toContain("STATUS 404");
     for (const bad of [{ SESSION_SECRET: "" }, { SESSION_SECRET: "change-me" }, { BASE_URL: "http://reroute.example.com" }]) {
       const r = await run({ ...good, ...bad });

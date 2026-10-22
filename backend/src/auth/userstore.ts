@@ -16,13 +16,17 @@ export type User = {
   name: string | null;
   provider: UserProvider;
   providerId: string;
+  /** Raised by sign-out; session tokens carrying an older version are no longer accepted. */
+  sessionVersion: number;
 };
 
 /** A user is identified by (provider, providerId); email is informational and never used to link accounts. */
 export type UserStore = {
   findByProvider(provider: UserProvider, providerId: string): Promise<User | null>;
   findById(id: number): Promise<User | null>;
-  create(data: Omit<User, "id">): Promise<User>;
+  create(data: Omit<User, "id" | "sessionVersion">): Promise<User>;
+  /** Invalidates every session token issued so far for this user (sign out everywhere). */
+  revokeSessions(id: number): Promise<void>;
 };
 
 export function createMemoryUserStore(): UserStore {
@@ -38,9 +42,13 @@ export function createMemoryUserStore(): UserStore {
       if (users.some((u) => u.provider === data.provider && u.providerId === data.providerId)) {
         throw new DuplicateUserError();
       }
-      const user = { id: users.length + 1, ...data };
+      const user = { id: users.length + 1, sessionVersion: 0, ...data };
       users.push(user);
       return user;
+    },
+    async revokeSessions(id) {
+      const i = users.findIndex((u) => u.id === id);
+      if (i >= 0) users[i] = { ...users[i]!, sessionVersion: users[i]!.sessionVersion + 1 };
     },
   };
 }
@@ -69,4 +77,5 @@ export const userStore: UserStore = {
   findByProvider: async (provider, providerId) => (await resolve()).findByProvider(provider, providerId),
   findById: async (id) => (await resolve()).findById(id),
   create: async (data) => (await resolve()).create(data),
+  revokeSessions: async (id) => (await resolve()).revokeSessions(id),
 };

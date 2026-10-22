@@ -68,3 +68,13 @@ If you change `PORT`, change `BASE_URL` to match, then register the new URL. The
 **Try it:** `bun run dev`, open `http://localhost:8000/auth/github/signup` (first time) and approve; you land on `/search` signed in. Later visits use `/auth/github/signin`. A sign-in for an account that was never signed up returns 404 "No account found, sign up first".
 
 Automated tests mock every provider HTTP call. A real GitHub or Google sign-in has not been run against this implementation.
+
+## Security and deployment notes
+
+- **Sessions** are HS256 JWTs (7 days) in an HttpOnly, SameSite=Lax, `Secure`-on-https cookie. Signing out (`POST /auth/signout`) revokes **every** session of that user by bumping `users.session_version`; tokens carrying an older version are refused. Run `bun run db:migrate` **before** deploying a version that needs the column (it is additive and keeps existing users).
+- **CSRF:** cookie-authenticated `POST/PUT/PATCH/DELETE` requests must carry an `Origin` (or `Referer`) equal to `BASE_URL` (outside production also the server's own host:port), and are refused when `Sec-Fetch-Site: cross-site`. Requests with no session cookie or an explicit `Authorization: Bearer` header are not affected, and GETs are never checked. OAuth callbacks are protected by the signed, single-use state cookie instead.
+- **Rate limits** (in-process memory): auth endpoints 40 per 10 min per IP; the authenticated API 240/min per IP, and per user 30/min `/trains/search`, 60/min `/trains/alternatives`, 120/min `/stations/search`. Behind a reverse proxy set `TRUST_PROXY` to the number of proxy hops, otherwise all clients share the proxy's IP; with several server instances each keeps its own counters, so the real ceiling is `limit x instances` (use a shared store such as Redis if that matters).
+- **Headers:** CSP (`default-src 'self'`, no inline scripts), `X-Frame-Options: DENY`, `nosniff`, referrer policy, HSTS for https production, `no-store` on account and API responses. **CORS is deliberately not enabled**: the API is same-origin only.
+- **Production startup** refuses to run without a 32+ character non-placeholder `SESSION_SECRET`, an `https://` `BASE_URL`, `DATABASE_URL`, and with `DEV_LOGIN=true` or `USER_STORE=memory`. It warns when no OAuth provider, `RAILRADAR_API_KEY` or `TRUST_PROXY` is configured.
+- **Errors:** clients only see fixed messages; SQL, driver, stack and RailRadar details stay in the server log.
+- The server speaks plain HTTP: terminate TLS at a reverse proxy or platform load balancer.
