@@ -7,6 +7,7 @@ import { flush, mouseDown, options, type } from "../../test/dom.ts";
 const realFetch = globalThis.fetch;
 let journeys: unknown;
 let calls: string[];
+let inits: (RequestInit | undefined)[];
 let respond: () => Promise<Response>;
 
 const json = (status: number, body: unknown) => () => Promise.resolve(new Response(JSON.stringify(body), { status }));
@@ -28,8 +29,9 @@ async function submit() {
 beforeAll(async () => {
   const html = await Bun.file(new URL("../../public/search.html", import.meta.url)).text();
   document.body.innerHTML = html.match(/<body>([\s\S]*)<\/body>/)![1]!.replace(/<script[\s\S]*?<\/script>/, "");
-  globalThis.fetch = ((url: string) => {
+  globalThis.fetch = ((url: string, init?: RequestInit) => {
     calls.push(String(url));
+    inits.push(init);
     return respond();
   }) as unknown as typeof fetch;
   journeys = await findAlternativeJourneys(mockRailData, {
@@ -49,8 +51,17 @@ afterAll(() => {
 
 beforeEach(() => {
   calls = [];
+  inits = [];
   respond = json(200, journeys);
 });
+
+const savedView = () => document.getElementById("saved-view")!;
+const searchView = () => document.getElementById("search-view")!;
+const goTo = async (hash: string) => {
+  location.hash = hash;
+  window.dispatchEvent(new Event("hashchange"));
+  await flush();
+};
 
 describe("search page wiring", () => {
   test("defaults to alternative journeys with its extra fields visible", () => {
@@ -152,6 +163,54 @@ describe("search page wiring", () => {
     await submit();
     expect(status().textContent).toContain("Network error");
     expect(status().querySelector(".retry")).not.toBeNull();
+  });
+
+  test("each journey card has a Save button that posts that journey to /journeys/saved", async () => {
+    await submit();
+    const save = results().querySelector<HTMLButtonElement>(".journey-actions button")!;
+    expect(save.textContent).toBe("Save journey");
+    const before = calls.length;
+    respond = json(201, { journey: { id: "x", savedAt: "2026-10-22T10:00:00Z", source: {}, destination: {}, travelDate: "2026-10-20", journey: {} } });
+    save.click();
+    await flush();
+    expect(calls.slice(before)).toEqual(["/journeys/saved"]);
+    expect(inits[before]!.method).toBe("POST");
+    expect(JSON.parse(String(inits[before]!.body)).journey.legs[0].trainNumber).toBe("12301");
+    expect(save.textContent).toBe("Saved ✓");
+  });
+
+  test("saving while signed out shows the sign-in panel", async () => {
+    await submit();
+    respond = json(401, { error: "Not signed in" });
+    results().querySelector<HTMLButtonElement>(".journey-actions button")!.click();
+    await flush();
+    expect(status().textContent).toBe("Please sign in to save journeys.");
+    expect(document.getElementById("auth-prompt")!.hidden).toBe(false);
+  });
+
+  test("the Saved journeys tab switches views by hash, marks the current tab, and loads the list", async () => {
+    expect(searchView().hidden).toBe(false);
+    expect(savedView().hidden).toBe(true);
+    respond = json(200, { journeys: [] });
+    await goTo("#saved");
+    await flush(); // the list request and its render take a few more ticks
+    expect(searchView().hidden).toBe(true);
+    expect(savedView().hidden).toBe(false);
+    expect(calls.at(-1)).toBe("/journeys/saved");
+    expect(document.getElementById("saved-status")!.textContent).toContain("haven't saved any journeys yet");
+    const current = [...document.querySelectorAll(".tabs a")].filter((a) => a.getAttribute("aria-current") === "page").map((a) => a.textContent);
+    expect(current).toEqual(["Saved journeys"]);
+
+    await goTo("#search");
+    expect(searchView().hidden).toBe(false);
+    expect(savedView().hidden).toBe(true);
+    expect([...document.querySelectorAll(".tabs a")].filter((a) => a.getAttribute("aria-current") === "page").map((a) => a.textContent)).toEqual(["Search"]);
+  });
+
+  test("the tabs are real links, so they work from the keyboard", () => {
+    const links = [...document.querySelectorAll<HTMLAnchorElement>(".tabs a")];
+    expect(links.map((a) => [a.textContent, a.getAttribute("href")])).toEqual([["Search", "#search"], ["Saved journeys", "#saved"]]);
+    expect(document.querySelector("nav.tabs")!.getAttribute("aria-label")).toBe("Sections");
   });
 
   test("direct mode hides the alternative-only fields and uses /trains/search", async () => {

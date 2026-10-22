@@ -305,7 +305,7 @@ describe("saved-journeys API", () => {
     const { cookie } = await newUser();
     const { journey } = json(await call(cookie, "POST", "/journeys/saved", { journey: real }));
     const noOrigin = (method: string, path: string, body?: unknown) =>
-      send(base, path, { method, headers: { Cookie: cookie, ...(body ? { "Content-Type": "application/json" } : {}) }, ...(body && { body: JSON.stringify(body) }) });
+      send(base, path, { method, headers: { Cookie: cookie, ...(body !== undefined ? { "Content-Type": "application/json" } : {}) }, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
     expect((await noOrigin("POST", "/journeys/saved", { journey: other })).status).toBe(403);
     expect((await noOrigin("DELETE", `/journeys/saved/${journey.id}`)).status).toBe(403);
     const evil = await send(base, `/journeys/saved/${journey.id}`, { method: "DELETE", headers: { Cookie: cookie, Origin: "https://evil.example" } });
@@ -331,6 +331,28 @@ describe("saved-journeys API", () => {
     await call(cookie, "POST", "/auth/signout");
     expect((await call(cookie, "GET", "/journeys/saved")).status).toBe(401);
     expect(user.id).toBeGreaterThan(0);
+  });
+});
+
+describe("saved-journeys API at the cap", () => {
+  test("a full list is a 409 with a stable code and the limit in the message", async () => {
+    const saved = process.env["SESSION_SECRET"];
+    process.env["SESSION_SECRET"] = SECRET;
+    const full: SavedJourneyStore = { save: async () => ({ kind: "limit" }), list: async () => [], remove: async () => false };
+    const app = express();
+    app.use(express.json());
+    app.use(createJourneysRouter({ store: async () => full }));
+    const { base, close } = await serve(app);
+    try {
+      const { cookie } = await newUser();
+      const r = await send(base, "/journeys/saved", { method: "POST", headers: { Cookie: cookie, "Content-Type": "application/json" }, body: JSON.stringify({ journey: real }) });
+      expect(r.status).toBe(409);
+      expect(JSON.parse(r.body)).toEqual({ error: `You can save at most ${MAX_SAVED_PER_USER} journeys. Remove one first.`, code: "LIMIT_REACHED" });
+    } finally {
+      close();
+      if (saved === undefined) delete process.env["SESSION_SECRET"];
+      else process.env["SESSION_SECRET"] = saved;
+    }
   });
 });
 
@@ -379,7 +401,9 @@ describe("saved-journeys API when the store fails", () => {
 
 // --- the store contract: memory always, PostgreSQL when TEST_DATABASE_URL is set -----------------
 
-function storeContract(name: string, make: () => Promise<{ store: SavedJourneyStore; user: () => Promise<number> }>) {
+const CAP = 5; // the cap tests use a small limit so PostgreSQL runs stay quick
+
+function storeContract(name: string, make: (max?: number) => Promise<{ store: SavedJourneyStore; user: () => Promise<number> }>) {
   describe(`${name} saved-journey store`, () => {
     test("saves, lists newest first, and deletes", async () => {
       const { store, user } = await make();
@@ -425,27 +449,39 @@ function storeContract(name: string, make: () => Promise<{ store: SavedJourneySt
       expect(await store.remove(await user(), "00000000-0000-4000-8000-000000000000")).toBe(false);
     });
 
-    test(`stops at ${MAX_SAVED_PER_USER} per user, still allowing re-saves of existing ones`, async () => {
-      const { store, user } = await make();
+    const variant = (i: number) => {
+      const j = clone(real) as any;
+      j.legs[0].originDate = new Date(Date.UTC(2026, 0, 1 + i)).toISOString().slice(0, 10); // a distinct run each time
+      return j as Journey;
+    };
+
+    test("stops at the per-user cap, still allowing re-saves of existing journeys", async () => {
+      const { store, user } = await make(CAP);
       const u = await user();
-      const base = clone(real) as any;
-      for (let i = 0; i < MAX_SAVED_PER_USER; i++) {
-        const j = clone(base);
-        j.legs[0].originDate = new Date(Date.UTC(2026, 0, 1 + i)).toISOString().slice(0, 10); // distinct runs
-        expect((await store.save(u, j)).kind).toBe("created");
-      }
+      for (let i = 0; i < CAP; i++) expect((await store.save(u, variant(i))).kind).toBe("created");
       expect((await store.save(u, other)).kind).toBe("limit");
-      const again = clone(base);
-      again.legs[0].originDate = "2026-01-01";
-      expect((await store.save(u, again)).kind).toBe("exists");
-      expect(await store.list(u)).toHaveLength(MAX_SAVED_PER_USER);
-      expect((await store.save(await user(), other)).kind).toBe("created"); // another user unaffected
+      expect((await store.save(u, variant(0))).kind).toBe("exists");
+      expect(await store.list(u)).toHaveLength(CAP);
+      expect((await store.save(await user(), other)).kind).toBe("created"); // another user is unaffected
+      // Removing one makes room again.
+      const first = (await store.list(u)).at(-1)!;
+      expect(await store.remove(u, first.id)).toBe(true);
+      expect((await store.save(u, other)).kind).toBe("created");
+    });
+
+    test("concurrent saves cannot overshoot the cap", async () => {
+      const { store, user } = await make(CAP);
+      const u = await user();
+      const results = await Promise.all(Array.from({ length: 12 }, (_, i) => store.save(u, variant(i))));
+      expect(results.filter((r) => r.kind === "created")).toHaveLength(CAP);
+      expect(results.filter((r) => r.kind === "limit")).toHaveLength(12 - CAP);
+      expect(await store.list(u)).toHaveLength(CAP);
     });
   });
 }
 
-storeContract("in-memory", async () => {
-  const store = createMemorySavedJourneyStore();
+storeContract("in-memory", async (max) => {
+  const store = createMemorySavedJourneyStore(max === undefined ? {} : { max });
   let id = 0;
   return { store, user: async () => ++id }; // the memory store does not need real user rows
 });
@@ -475,17 +511,17 @@ describe.skipIf(!testDbUrl)("PostgreSQL saved-journey store", () => {
     return (row as { id: number }).id;
   };
 
-  storeContract("postgres", async () => {
+  storeContract("postgres", async (max) => {
     await sql`TRUNCATE ${sql(table)}`; // our own scratch table only
-    return { store: createPostgresSavedJourneyStore(sql, table), user: makeUser };
+    return { store: createPostgresSavedJourneyStore(sql, { table, ...(max !== undefined && { max }) }), user: makeUser };
   });
 
   test("journeys survive a restart: a brand-new connection and store still find them", async () => {
     const u = await makeUser();
-    const saved = (await createPostgresSavedJourneyStore(sql, table).save(u, real)) as any;
+    const saved = (await createPostgresSavedJourneyStore(sql, { table }).save(u, real)) as any;
     const reopened = new Bun.SQL(testDbUrl!, { max: 1 });
     try {
-      const list = await createPostgresSavedJourneyStore(reopened, table).list(u);
+      const list = await createPostgresSavedJourneyStore(reopened, { table }).list(u);
       expect(list.map((s) => s.id)).toEqual([saved.saved.id]);
       expect(list[0]!.journey).toEqual(real);
     } finally {
@@ -495,13 +531,13 @@ describe.skipIf(!testDbUrl)("PostgreSQL saved-journey store", () => {
 
   test("migrating again is harmless and keeps existing rows", async () => {
     const u = await makeUser();
-    await createPostgresSavedJourneyStore(sql, table).save(u, real);
+    await createPostgresSavedJourneyStore(sql, { table }).save(u, real);
     await migrateSavedJourneysTable(sql, table, usersTable);
-    expect(await createPostgresSavedJourneyStore(sql, table).list(u)).toHaveLength(1);
+    expect(await createPostgresSavedJourneyStore(sql, { table }).list(u)).toHaveLength(1);
   });
 
   test("deleting a user removes that user's journeys and nobody else's", async () => {
-    const store = createPostgresSavedJourneyStore(sql, table);
+    const store = createPostgresSavedJourneyStore(sql, { table });
     const [a, b] = [await makeUser(), await makeUser()];
     await store.save(a, real);
     await store.save(b, real);
@@ -511,7 +547,7 @@ describe.skipIf(!testDbUrl)("PostgreSQL saved-journey store", () => {
   });
 
   test("the database itself refuses journeys for unknown users and rows that break the constraints", async () => {
-    const store = createPostgresSavedJourneyStore(sql, table);
+    const store = createPostgresSavedJourneyStore(sql, { table });
     await expect(store.save(2_000_000_000, real)).rejects.toThrow(); // foreign key
     const u = await makeUser();
     const insert = (over: { transfers?: number; journey?: object; arrival?: string }) => sql`
@@ -527,7 +563,7 @@ describe.skipIf(!testDbUrl)("PostgreSQL saved-journey store", () => {
   });
 
   test("concurrent saves of one journey create exactly one row", async () => {
-    const store = createPostgresSavedJourneyStore(sql, table);
+    const store = createPostgresSavedJourneyStore(sql, { table });
     const u = await makeUser();
     const results = await Promise.all(Array.from({ length: 6 }, () => store.save(u, real)));
     expect(results.filter((r) => r.kind === "created")).toHaveLength(1);
@@ -535,7 +571,7 @@ describe.skipIf(!testDbUrl)("PostgreSQL saved-journey store", () => {
   });
 
   test("a stored journey is reachable only with its owner id; SQL in ids is inert", async () => {
-    const store = createPostgresSavedJourneyStore(sql, table);
+    const store = createPostgresSavedJourneyStore(sql, { table });
     const [a, b] = [await makeUser(), await makeUser()];
     const saved = (await store.save(a, real)) as any;
     expect(await store.remove(b, saved.saved.id)).toBe(false);

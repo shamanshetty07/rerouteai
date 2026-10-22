@@ -1,5 +1,6 @@
 import { fetchAlternatives, formatDuration, renderJourneys } from "./alternatives.ts";
 import { hideAuthPrompt, showAuthPrompt } from "./authLinks.ts";
+import { createSaveFooter, initSavedView } from "./savedView.ts";
 import { initSearchForm, type SearchValues } from "./searchForm.ts";
 import { mockStationSource } from "./stations/stationSource.ts";
 
@@ -92,7 +93,14 @@ async function searchAlternatives(values: SearchValues) {
         const n = outcome.result.journeys.length;
         if (!n) return setStatus("No journeys found for that route, date and time. Try a later time or more transfers.");
         setStatus(`${n} journey option${n === 1 ? "" : "s"}, best first`);
-        return renderJourneys(results, outcome.result);
+        return renderJourneys(results, outcome.result, (journey) =>
+          createSaveFooter(journey, {
+            onUnauthorized: () => {
+              setStatus("Please sign in to save journeys.", true);
+              showAuthPrompt(authPrompt);
+            },
+          }),
+        );
       }
       case "unauthorized":
         return needSignIn();
@@ -131,3 +139,23 @@ async function search(values: SearchValues) {
 
 syncMode();
 initSearchForm(form, { source: mockStationSource, onSubmit: search });
+
+// Two views on one page, chosen by the URL hash so each is linkable and the back button works.
+const savedView = initSavedView({
+  status: document.getElementById("saved-status")!,
+  list: document.getElementById("saved-list")!,
+  authPrompt: document.getElementById("saved-auth-prompt")!,
+});
+
+function showView() {
+  const saved = location.hash === "#saved";
+  document.getElementById("search-view")!.hidden = saved;
+  document.getElementById("saved-view")!.hidden = !saved;
+  for (const link of document.querySelectorAll<HTMLAnchorElement>(".tabs a")) {
+    if ((link.dataset["view"] === "saved") === saved) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
+  }
+  if (saved) void savedView.load();
+}
+window.addEventListener("hashchange", showView);
+showView();

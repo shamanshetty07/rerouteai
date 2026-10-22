@@ -49,17 +49,22 @@ function toSaved(row: Row): SavedJourney {
 
 const COLUMNS = (sql: Sql) => sql`id, created_at, to_char(travel_date, 'YYYY-MM-DD') AS travel_date, journey`;
 
-export function createPostgresSavedJourneyStore(sql: Sql, table = "saved_journeys"): SavedJourneyStore {
-  async function findByKey(userId: number, key: string): Promise<SavedJourney | null> {
-    const [row] = await sql`SELECT ${COLUMNS(sql)} FROM ${sql(table)} WHERE user_id = ${userId} AND journey_key = ${key}`;
+export type PostgresStoreOptions = { table?: string; /** Per-user cap; tests lower it. */ max?: number };
+
+export function createPostgresSavedJourneyStore(sql: Sql, { table = "saved_journeys", max = MAX_SAVED_PER_USER }: PostgresStoreOptions = {}): SavedJourneyStore {
+  async function findByKey(db: Sql, userId: number, key: string): Promise<SavedJourney | null> {
+    const [row] = await db`SELECT ${COLUMNS(sql)} FROM ${sql(table)} WHERE user_id = ${userId} AND journey_key = ${key}`;
     return row ? toSaved(row as Row) : null;
   }
 
   return {
     async save(userId, journey): Promise<SaveResult> {
       const key = journeyKey(journey);
-      // One statement enforces both the per-user cap and de-duplication, so concurrent saves can't overshoot either.
-      const [row] = await sql`
+      // De-duplication is guaranteed by the UNIQUE key. The cap needs a count-then-insert, so saves by
+      // the same user are serialised with a transaction-scoped advisory lock; other users never wait.
+      return sql.begin(async (tx) => {
+        await tx`SELECT pg_advisory_xact_lock(hashtext(${table}), ${userId}::integer)`;
+        const [row] = await tx`
         INSERT INTO ${sql(table)}
           (user_id, journey_key, source_id, source_name, destination_id, destination_name, travel_date,
            departure_at, arrival_at, transfer_count, total_duration_minutes, journey)
@@ -69,13 +74,14 @@ export function createPostgresSavedJourneyStore(sql: Sql, table = "saved_journey
                ${journey.destination.id}::text, ${journey.destination.name}::text, ${travelDateOf(journey)}::date,
                ${journey.departure}::timestamptz, ${journey.arrival}::timestamptz, ${journey.transferCount}::smallint,
                ${journey.totalDurationMinutes}::integer, ${journey}::jsonb
-        WHERE (SELECT count(*) FROM ${sql(table)} WHERE user_id = ${userId}) < ${MAX_SAVED_PER_USER}
+        WHERE (SELECT count(*) FROM ${sql(table)} WHERE user_id = ${userId}) < ${max}
         ON CONFLICT (user_id, journey_key) DO NOTHING
         RETURNING ${COLUMNS(sql)}`;
-      if (row) return { kind: "created", saved: toSaved(row as Row) };
-      // Nothing inserted: either this exact journey is already saved, or the cap was hit.
-      const existing = await findByKey(userId, key);
-      return existing ? { kind: "exists", saved: existing } : { kind: "limit" };
+        if (row) return { kind: "created", saved: toSaved(row as Row) } as SaveResult;
+        // Nothing inserted: either this exact journey is already saved, or the cap was hit.
+        const existing = await findByKey(tx as unknown as Sql, userId, key);
+        return (existing ? { kind: "exists", saved: existing } : { kind: "limit" }) as SaveResult;
+      });
     },
 
     async list(userId) {

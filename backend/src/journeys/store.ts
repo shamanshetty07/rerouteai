@@ -28,14 +28,14 @@ export const travelDateOf = (journey: Journey) => istDateOf(new Date(journey.dep
 
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export function createMemorySavedJourneyStore(): SavedJourneyStore {
+export function createMemorySavedJourneyStore({ max = MAX_SAVED_PER_USER }: { max?: number } = {}): SavedJourneyStore {
   const rows: { userId: number; key: string; saved: SavedJourney }[] = [];
   return {
     async save(userId, journey) {
       const key = journeyKey(journey);
       const existing = rows.find((r) => r.userId === userId && r.key === key);
       if (existing) return { kind: "exists", saved: existing.saved };
-      if (rows.filter((r) => r.userId === userId).length >= MAX_SAVED_PER_USER) return { kind: "limit" };
+      if (rows.filter((r) => r.userId === userId).length >= max) return { kind: "limit" };
       const saved: SavedJourney = {
         id: randomUUID(),
         savedAt: new Date().toISOString(),

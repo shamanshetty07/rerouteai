@@ -5,7 +5,7 @@ Express API for Reroute, run with [Bun](https://bun.com).
 ```bash
 bun install
 cp .env.example .env   # set DATABASE_URL and SESSION_SECRET
-bun run db:migrate     # once per database: creates the users table (additive, idempotent)
+bun run db:migrate     # once per database: creates the users and saved_journeys tables (additive, idempotent)
 bun run dev            # hot reload, http://localhost:8000
 bun run start
 ```
@@ -78,3 +78,19 @@ Automated tests mock every provider HTTP call. A real GitHub or Google sign-in h
 - **Production startup** refuses to run without a 32+ character non-placeholder `SESSION_SECRET`, an `https://` `BASE_URL`, `DATABASE_URL`, and with `DEV_LOGIN=true` or `USER_STORE=memory`. It warns when no OAuth provider, `RAILRADAR_API_KEY` or `TRUST_PROXY` is configured.
 - **Errors:** clients only see fixed messages; SQL, driver, stack and RailRadar details stay in the server log.
 - The server speaks plain HTTP: terminate TLS at a reverse proxy or platform load balancer.
+
+## Saved journeys
+
+Signed-in users can save a journey from the search results and manage them under **Saved journeys** (`/search#saved`). The owner is always the user in the verified session; nothing the client sends can name another owner.
+
+| Method and path | Body | Success | Errors |
+|---|---|---|---|
+| `POST /journeys/saved` | `{ "journey": <Journey> }`, exactly as returned by `/trains/alternatives` | `201 { "journey": SavedJourney }`, or `200` with the existing one if that trip is already saved | `400 { error }` invalid payload, `401`, `409 { error, code: "LIMIT_REACHED" }` (100 per user), `413`, `429` |
+| `GET /journeys/saved` | none | `200 { "journeys": SavedJourney[] }`, newest first, only the caller's | `401`, `429` |
+| `DELETE /journeys/saved/:id` | none | `204` | `404 { error }` for an unknown id **and** for another user's journey (indistinguishable), `401`, `429` |
+
+`SavedJourney` is `{ id, savedAt, source, destination, travelDate, journey }` (see `src/journeys/types.ts`). The journey is validated field by field and checked for consistency (legs connect, time moves forward, totals agree); unknown fields are dropped. It is a snapshot of what the user was shown, not a booking and not re-checked against the timetable.
+
+Storage is the `saved_journeys` table (`bun run db:migrate`; additive, never touches `users`): UUID id, `user_id` with `ON DELETE CASCADE`, source/destination, travel date, departure/arrival, transfer count and duration, the full journey as `jsonb` (legs, transfers, warnings), `created_at`, `UNIQUE (user_id, journey_key)` so the same trip is stored once, `CHECK` constraints on shape and size, and an index on `(user_id, created_at DESC)`. Per-user budgets: 30 saves, 120 lists and 60 deletes per minute. CSRF, headers and the 10 KB body limit apply as for the rest of the API.
+
+PostgreSQL tests are opt-in: `TEST_DATABASE_URL="postgresql://..." bun test src/journeys` (each run creates and drops its own scratch `users_jtest_*` and `saved_jtest_*` tables and never touches real data). Without it those tests are reported as skipped.
