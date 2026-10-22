@@ -83,11 +83,12 @@ function warningList(warnings: (JourneyWarning | SearchWarning)[], className: st
   return list;
 }
 
-function renderJourney(journey: Journey, index: number): HTMLElement {
+/** One journey as a card. `footer` (e.g. a Save or Remove button) is appended below the details. */
+export function renderJourneyCard(journey: Journey, heading: string, footer?: HTMLElement): HTMLElement {
   const card = el("article", "journey");
   const head = el("header", "journey-head");
   head.append(
-    el("h3", undefined, `Option ${index + 1}`),
+    el("h3", undefined, heading),
     el("p", "journey-times", `${formatInstant(journey.departure)} → ${formatInstant(journey.arrival)}`),
     el(
       "p",
@@ -120,12 +121,16 @@ function renderJourney(journey: Journey, index: number): HTMLElement {
   card.append(steps);
 
   if (journey.warnings.length) card.append(warningList(journey.warnings, "journey-warnings"));
+  if (footer) card.append(footer);
   return card;
 }
 
-/** Replaces the container's contents with the journeys, in the order the API returned them. */
-export function renderJourneys(container: HTMLElement, result: AlternativeSearchResult) {
+/**
+ * Replaces the container's contents with the journeys, in the order the API returned them.
+ * `footer` optionally builds a per-journey action row (the page uses it for the Save button).
+ */
+export function renderJourneys(container: HTMLElement, result: AlternativeSearchResult, footer?: (journey: Journey) => HTMLElement) {
   container.replaceChildren();
   if (result.warnings.length) container.append(warningList(result.warnings, "search-warnings"));
-  result.journeys.forEach((journey, i) => container.append(renderJourney(journey, i)));
+  result.journeys.forEach((journey, i) => container.append(renderJourneyCard(journey, `Option ${i + 1}`, footer?.(journey))));
 }

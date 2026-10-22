@@ -19,7 +19,7 @@ const CSP = [
 ].join("; ");
 
 /** Responses carrying account or search data must never sit in a shared or browser cache. */
-const NO_STORE_PREFIXES = ["/auth", "/profile", "/me", "/trains", "/stations"];
+const NO_STORE_PREFIXES = ["/auth", "/profile", "/me", "/trains", "/stations", "/journeys"];
 
 export function securityHeaders(env: Env = process.env): RequestHandler {
   const hsts = env["NODE_ENV"] === "production" && (env["BASE_URL"] ?? "").startsWith("https://");

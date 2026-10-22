@@ -4,6 +4,7 @@ import { createAuthRouter } from "../auth/authcontroller.ts";
 import { assertAuthConfig } from "../auth/config.ts";
 import { createDevLoginRouter } from "../auth/devlogin.ts";
 import { createProviders } from "../auth/providers.ts";
+import { createJourneysRouter } from "../journeys/controller.ts";
 import trainRouter from "../trains/traincontroller.ts";
 import { csrfProtection, errorHandler, parseTrustProxy, rateLimit, securityHeaders } from "./security.ts";
 
@@ -29,11 +30,12 @@ export function createApp(env: Env = process.env) {
   app.use(express.static(fileURLToPath(new URL("../../public", import.meta.url)), { extensions: ["html"] }));
 
   app.use("/auth", rateLimit({ windowMs: AUTH_WINDOW_MS, max: AUTH_MAX }));
-  app.use(["/trains", "/stations", "/profile", "/me"], rateLimit({ windowMs: API_WINDOW_MS, max: API_IP_MAX }));
+  app.use(["/trains", "/stations", "/journeys", "/profile", "/me"], rateLimit({ windowMs: API_WINDOW_MS, max: API_IP_MAX }));
 
   app.use(createDevLoginRouter(env));
   app.use(createAuthRouter({ env, providers: createProviders({ env }) }));
   app.use(trainRouter);
+  app.use(createJourneysRouter());
 
   app.use(errorHandler);
   return app;
