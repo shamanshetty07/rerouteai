@@ -33,6 +33,16 @@ describe("real app wiring", () => {
     expect(r.stderr).toContain("Refusing to start");
   });
 
+  test("production refuses to start with a missing, short or placeholder SESSION_SECRET, or a non-https BASE_URL", async () => {
+    const good = { NODE_ENV: "production", SESSION_SECRET: "s".repeat(40), BASE_URL: "https://reroute.example.com" };
+    expect((await run(good)).stdout).toContain("STATUS 404");
+    for (const bad of [{ SESSION_SECRET: "" }, { SESSION_SECRET: "change-me" }, { BASE_URL: "http://reroute.example.com" }]) {
+      const r = await run({ ...good, ...bad });
+      expect(r.code).not.toBe(0);
+      expect(r.stderr).toContain("Refusing to start");
+    }
+  });
+
   test("with DEV_LOGIN=true outside production it signs in", async () => {
     const r = await run({ SESSION_SECRET: "x", DEV_LOGIN: "true", NODE_ENV: "development" });
     expect(r.stdout).toContain("STATUS 302 COOKIE true");

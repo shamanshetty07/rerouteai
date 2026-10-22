@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { SESSION_COOKIE, createSessionToken, sessionCookieOptions } from "./session.ts";
+import { safeNextPath } from "./redirect.ts";
 import { DuplicateUserError, userStore, type User } from "./userstore.ts";
 
 // Development-only sign-in for working on authenticated pages without OAuth credentials.
@@ -65,9 +66,7 @@ export function createDevLoginRouter(env: Env = process.env): Router {
     }
     const user = await devUser();
     res.cookie(SESSION_COOKIE, createSessionToken(user.id), sessionCookieOptions);
-    // Only same-site paths, so this cannot be used as an open redirect.
-    const next = typeof req.query["next"] === "string" ? req.query["next"] : "";
-    res.redirect(/^\/(?![/\\])/.test(next) ? next : "/search");
+    res.redirect(safeNextPath(req.query["next"]));
   });
 
   return router;

@@ -38,3 +38,33 @@ Users are stored in PostgreSQL (`users` table, via Bun's built-in `Bun.SQL`), ke
   TEST_DATABASE_URL="postgresql://..." bun test src/auth/userstore.test.ts
   ```
 - Prisma is not used for users yet: with the pinned prerelease packages `prisma contract emit` fails (even on the untouched contract), which is also why `src/prisma/db.ts` does not typecheck.
+
+## OAuth setup (GitHub and Google)
+
+Sign-in uses the authorization-code flow with PKCE and a signed, expiring, single-use state cookie. Accounts are identified only by the provider's stable user id, never by email, so the same address on GitHub and on Google gives two separate users.
+
+**Routes** (from `src/auth/authcontroller.ts`):
+
+| Purpose | Path |
+|---|---|
+| Start sign-in / sign-up | `GET /auth/github/signin`, `/auth/github/signup`, `/auth/google/signin`, `/auth/google/signup` (optional `?next=/path`, same-site paths only, default `/search`) |
+| Provider callback | `GET /auth/github/callback`, `GET /auth/google/callback` |
+
+The callback URL you register with each provider is `${BASE_URL}/auth/<provider>/callback`:
+
+| | GitHub | Google |
+|---|---|---|
+| Local development (`BASE_URL=http://localhost:8000`, the default) | `http://localhost:8000/auth/github/callback` | `http://localhost:8000/auth/google/callback` |
+| Production (`BASE_URL=https://<your-domain>`) | `https://<your-domain>/auth/github/callback` | `https://<your-domain>/auth/google/callback` |
+
+If you change `PORT`, change `BASE_URL` to match, then register the new URL. The URL must match exactly, including scheme, host, port and path.
+
+**GitHub** — github.com → Settings → Developer settings → OAuth Apps → New OAuth App. Set *Homepage URL* to `BASE_URL` and *Authorization callback URL* to the GitHub URL above. Generate a client secret. GitHub allows one callback URL per app, so create one app for local development and one for production. Put the values in `.env` as `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`. Reroute requests `read:user user:email` and only trusts an email GitHub reports as verified.
+
+**Google** — console.cloud.google.com → APIs & Services → OAuth consent screen (configure it; add yourself as a test user while in testing), then Credentials → Create credentials → OAuth client ID → *Web application*. Add the Google URL above under *Authorized redirect URIs* (add both the local and the production URL to one client if you like). Put the values in `.env` as `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. Reroute requests `openid email profile`, verifies the ID token (RS256 signature against Google's published keys, issuer, audience, expiry, nonce) and requires `email_verified` to create an account.
+
+**Also required:** `SESSION_SECRET` (e.g. `openssl rand -hex 32`) and a database (`DATABASE_URL`, `bun run db:migrate`). A provider with no id or secret answers `503 not configured`. In production (`NODE_ENV=production`) the server refuses to start unless `SESSION_SECRET` is 32+ characters and not a placeholder, and `BASE_URL` is `https://`.
+
+**Try it:** `bun run dev`, open `http://localhost:8000/auth/github/signup` (first time) and approve; you land on `/search` signed in. Later visits use `/auth/github/signin`. A sign-in for an account that was never signed up returns 404 "No account found, sign up first".
+
+Automated tests mock every provider HTTP call. A real GitHub or Google sign-in has not been run against this implementation.
