@@ -1,16 +1,19 @@
 import type { ProviderName } from "./providers.ts";
 
+/** OAuth providers plus "dev", which only the development login (devlogin.ts) ever uses. */
+export type UserProvider = ProviderName | "dev";
+
 export type User = {
   id: number;
   email: string;
   name: string | null;
-  provider: ProviderName;
+  provider: UserProvider;
   providerId: string;
 };
 
 /** Swap this for a Prisma-backed implementation once the contract emits. */
 export type UserStore = {
-  findByProvider(provider: ProviderName, providerId: string): Promise<User | null>;
+  findByProvider(provider: UserProvider, providerId: string): Promise<User | null>;
   findById(id: number): Promise<User | null>;
   create(data: Omit<User, "id">): Promise<User>;
 };
