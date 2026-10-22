@@ -3,10 +3,13 @@ import { DuplicateUserError, userStore, type User } from "./userstore.ts";
 
 export type AuthMode = "signin" | "signup";
 
+export type AuthErrorCode = "no_account" | "account_exists" | "unverified_email";
+
 export class AuthError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    readonly code: AuthErrorCode,
   ) {
     super(message);
   }
@@ -31,12 +34,12 @@ export async function completeOAuth(
   const existing = await userStore.findByProvider(provider, profile.providerId);
 
   if (mode === "signin") {
-    if (!existing) throw new AuthError("No account found, sign up first", 404);
+    if (!existing) throw new AuthError("No account found, sign up first", 404, "no_account");
     return existing;
   }
-  if (existing) throw new AuthError("Account already exists, sign in instead", 409);
+  if (existing) throw new AuthError("Account already exists, sign in instead", 409, "account_exists");
   // A new account needs an address the provider has verified; an unverified one proves nothing.
-  if (!profile.email) throw new AuthError("Your account has no verified email address", 403);
+  if (!profile.email) throw new AuthError("Your account has no verified email address", 403, "unverified_email");
 
   try {
     return await userStore.create({
@@ -47,7 +50,7 @@ export async function completeOAuth(
     });
   } catch (err) {
     // Two simultaneous sign-ups for one identity: the database's unique key picks the winner.
-    if (err instanceof DuplicateUserError) throw new AuthError("Account already exists, sign in instead", 409);
+    if (err instanceof DuplicateUserError) throw new AuthError("Account already exists, sign in instead", 409, "account_exists");
     throw err;
   }
 }

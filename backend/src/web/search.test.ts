@@ -94,13 +94,43 @@ describe("search page wiring", () => {
     expect(status().className).toBe("error");
   });
 
-  test("offers sign-in links on a 401", async () => {
+  test("a 401 shows a sign-in group and a sign-up group, each linking to the right provider and mode", async () => {
     respond = json(401, { error: "Not signed in" });
     await submit();
-    expect([...status().querySelectorAll("a")].map((a) => a.getAttribute("href"))).toEqual([
-      "/auth/github/signin",
-      "/auth/google/signin",
+    expect(status().textContent).toBe("Please sign in to search trains.");
+
+    const prompt = document.getElementById("auth-prompt")!;
+    expect(prompt.hidden).toBe(false);
+    const links = [...prompt.querySelectorAll("a")].map((a) => [a.textContent, a.getAttribute("href")]);
+    expect(links).toEqual([
+      ["Sign in with GitHub", "/auth/github/signin"],
+      ["Sign in with Google", "/auth/google/signin"],
+      ["Sign up with GitHub", "/auth/github/signup"],
+      ["Sign up with Google", "/auth/google/signup"],
     ]);
+  });
+
+  test("the sign-in and sign-up choices are labelled groups that are distinguishable in text", () => {
+    const prompt = document.getElementById("auth-prompt")!;
+    expect(prompt.getAttribute("aria-label")).toBe("Sign in or sign up");
+    const groups = [...prompt.querySelectorAll<HTMLElement>('[role="group"]')];
+    expect(groups.map((g) => document.getElementById(g.getAttribute("aria-labelledby")!)!.textContent)).toEqual([
+      "Already have an account?",
+      "New to Reroute?",
+    ]);
+    // Sign-up links never share a label with sign-in links, so screen-reader users can tell them apart.
+    const labels = [...prompt.querySelectorAll("a")].map((a) => a.textContent);
+    expect(new Set(labels).size).toBe(labels.length);
+    expect(prompt.querySelectorAll("a[href^='/auth/']")).toHaveLength(4); // real links: keyboard focusable by default
+  });
+
+  test("the sign-in prompt disappears when the next search starts", async () => {
+    respond = json(401, { error: "Not signed in" });
+    await submit();
+    respond = json(200, journeys);
+    await submit();
+    expect(document.getElementById("auth-prompt")!.hidden).toBe(true);
+    expect(document.getElementById("auth-prompt")!.children).toHaveLength(0);
   });
 
   test("a 503 offers Retry, which repeats the same search", async () => {

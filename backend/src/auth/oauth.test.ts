@@ -724,3 +724,210 @@ describe("account isolation", () => {
     expect((await userStore.findByProvider("github", String(id)))!.email).toBe("old@example.com");
   });
 });
+
+// =================================================================================================
+// Friendly failure pages (browsers send Accept: text/html; API clients keep getting JSON)
+
+const HTML = { Accept: "text/html,application/xhtml+xml" };
+const page = (r: Reply) => r.body;
+const hrefs = (r: Reply) => [...r.body.matchAll(/<a class="[^"]*" href="([^"]*)">([^<]*)<\/a>/g)].map((m) => [m[2], m[1]]);
+
+async function withApp<T>(env: Record<string, string>, providers: ReturnType<typeof createProviders>, run: (get: (path: string, headers?: Record<string, string>) => Promise<Reply>) => Promise<T>) {
+  const app = express();
+  app.use(createAuthRouter({ env, now: () => clock, providers }));
+  const srv = await new Promise<Server>((resolve) => {
+    const s = app.listen(0, () => resolve(s));
+  });
+  const port = (srv.address() as { port: number }).port;
+  const get = (path: string, headers: Record<string, string> = {}) =>
+    new Promise<Reply>((resolve, reject) =>
+      httpGet(`http://127.0.0.1:${port}${path}`, { headers }, (res) => {
+        let body = "";
+        res.on("data", (c) => (body += c));
+        res.on("end", () => resolve({ status: res.statusCode!, headers: res.headers, body }));
+      }).on("error", reject),
+    );
+  try {
+    return await run(get);
+  } finally {
+    srv.close();
+  }
+}
+
+const htmlCallback = (provider: string, s: Started, extra: Record<string, string> = {}) =>
+  request(`/auth/${provider}/callback?${new URLSearchParams({ code: "auth-code", state: s.state, ...extra })}`, { Cookie: s.stateCookie, ...HTML });
+
+describe("friendly failure pages", () => {
+  test("first-time user signing in gets a sign-up suggestion, with the 404 status kept", async () => {
+    githubOk();
+    const r = await htmlCallback("github", await start("github", "signin"));
+    expect(r.status).toBe(404);
+    expect(String(r.headers["content-type"])).toContain("text/html");
+    expect(page(r)).toContain("No account yet");
+    expect(page(r)).toContain("Sign up to create one");
+    expect(hrefs(r)).toEqual([
+      ["Sign up with GitHub", "/auth/github/signup"],
+      ["Back to search", "/search"],
+    ]);
+    expect(cookie(r, "session")).toBeUndefined();
+  });
+
+  test("signing up with an existing identity gets a sign-in suggestion, with the 409 status kept", async () => {
+    const id = githubOk();
+    await callback("github", await start("github", "signup"));
+    githubOk({ id });
+    const r = await htmlCallback("github", await start("github", "signup"));
+    expect(r.status).toBe(409);
+    expect(page(r)).toContain("You already have an account");
+    expect(hrefs(r)[0]).toEqual(["Sign in with GitHub", "/auth/github/signin"]);
+  });
+
+  test("the retry link keeps a validated next path, and drops it when it is the default", async () => {
+    githubOk();
+    const withNext = await htmlCallback("github", await start("github", "signin", "?next=/profile"));
+    expect(hrefs(withNext)).toEqual([
+      ["Sign up with GitHub", "/auth/github/signup?next=%2Fprofile"],
+      ["Back to search", "/profile"],
+    ]);
+    // A hostile next never reached the state record, so it cannot reach the page.
+    githubOk();
+    const hostile = await htmlCallback("github", await start("github", "signin", `?next=${encodeURIComponent("https://evil.example/x")}`));
+    expect(page(hostile)).not.toContain("evil.example");
+  });
+
+  test("cancelled authorization: 403 page offering both ways back in, and no provider calls", async () => {
+    const r = await request("/auth/google/callback?error=access_denied", HTML);
+    expect(r.status).toBe(403);
+    expect(page(r)).toContain("Sign-in cancelled");
+    expect(hrefs(r)).toEqual([
+      ["Sign in with Google", "/auth/google/signin"],
+      ["Sign up with Google", "/auth/google/signup"],
+      ["Back to search", "/search"],
+    ]);
+    expect(calls).toHaveLength(0);
+  });
+
+  test("hostile query strings are never reflected into the page", async () => {
+    const evil = `"><script>alert(1)</script><img src=x onerror=alert(2)>`;
+    const q = new URLSearchParams({ error: evil, error_description: evil, error_uri: "javascript:alert(3)", state: evil, code: evil, provider: evil });
+    for (const path of [`/auth/github/callback?${q}`, `/auth/github/callback?code=${encodeURIComponent(evil)}&state=${encodeURIComponent(evil)}`]) {
+      const r = await request(path, HTML);
+      for (const needle of ["<script>alert", "onerror", "alert(", "javascript:", "evil"]) expect(page(r)).not.toContain(needle);
+    }
+    // An unknown provider name in the path is not echoed either.
+    const unknown = await request(`/auth/${encodeURIComponent("<b>x</b>")}/callback?error=1`, HTML);
+    expect(unknown.status).toBe(404);
+    expect(page(unknown)).not.toContain("<b>x");
+  });
+
+  test("invalid, missing and expired state: 400 page that asks the user to start again", async () => {
+    githubOk();
+    const bad = await request("/auth/github/callback?code=c&state=nope", HTML);
+    expect(bad.status).toBe(400);
+    expect(page(bad)).toContain("That sign-in link has expired");
+    expect(hrefs(bad).map(([label]) => label)).toEqual(["Sign in with GitHub", "Sign up with GitHub", "Back to search"]);
+
+    const s = await start("github");
+    clock += 11 * 60;
+    const expired = await htmlCallback("github", s);
+    expect(expired.status).toBe(400);
+    expect(page(expired)).toContain("expired");
+    expect(calls).toHaveLength(0);
+  });
+
+  test("provider outage: 502 page with no provider detail, tokens, codes or secrets", async () => {
+    routes["POST https://github.com/login/oauth/access_token"] = () => reply({ error: "server_error", error_description: "db password=hunter2" }, 500);
+    const r = await htmlCallback("github", await start("github"), { code: "very-secret-code" });
+    expect(r.status).toBe(502);
+    expect(page(r)).toContain("GitHub isn&#39;t responding");
+    for (const leak of ["hunter2", "server_error", "very-secret-code", "gh-client-secret", SECRET, "Error:", " at "]) expect(page(r)).not.toContain(leak);
+  });
+
+  test("no verified email: 403 page explains what to do", async () => {
+    githubOk({ emails: [] });
+    const r = await htmlCallback("github", await start("github", "signup"));
+    expect(r.status).toBe(403);
+    expect(page(r)).toContain("Verified email needed");
+    expect(page(r)).toContain("Verify an email with GitHub");
+  });
+
+  test("an unexpected internal error is a 500 page without the exception text", async () => {
+    const boom = {
+      ...createProviders({ env: ENV, fetch: fakeFetch }),
+      github: {
+        isConfigured: () => true,
+        authorizeUrl: ({ state }: { state: string }) => `https://github.com/login/oauth/authorize?state=${state}`,
+        fetchProfile: async () => {
+          throw new Error("connection string postgres://user:hunter2@db/x");
+        },
+      },
+    };
+    const { error } = console;
+    console.error = () => {};
+    try {
+      await withApp(ENV, boom, async (get) => {
+        const started = await get("/auth/github/signup", HTML);
+        const stateCookie = `oauth_state=${cookieValue(started, "oauth_state")}`;
+        const state = new URL(String(started.headers["location"])).searchParams.get("state")!;
+        const r = await get(`/auth/github/callback?code=c&state=${state}`, { ...HTML, Cookie: stateCookie });
+        expect(r.status).toBe(500);
+        expect(page(r)).toContain("Something went wrong");
+        expect(page(r)).not.toContain("hunter2");
+        expect(page(r)).not.toContain("postgres://");
+      });
+    } finally {
+      console.error = error;
+    }
+  });
+
+  test("missing provider configuration: 503 page from the start route, and nothing is set", async () => {
+    const env = { ...ENV, GOOGLE_CLIENT_ID: "" };
+    await withApp(env, createProviders({ env, fetch: fakeFetch }), async (get) => {
+      const r = await get("/auth/google/signup", HTML);
+      expect(r.status).toBe(503);
+      expect(page(r)).toContain("Sign-in unavailable");
+      expect(r.headers["location"]).toBeUndefined();
+      expect(cookie(r, "oauth_state")).toBeUndefined();
+      expect(hrefs(r)).toEqual([["Back to search", "/search"]]);
+    });
+  });
+
+  test("an unknown provider is a 404 page", async () => {
+    const r = await request("/auth/facebook/signin", HTML);
+    expect(r.status).toBe(404);
+    expect(page(r)).toContain("Unknown sign-in method");
+  });
+
+  test("the page is accessible and locked down: lang, title, heading, alert region, focus styles, no scripts", async () => {
+    const r = await request("/auth/github/callback?error=access_denied", HTML);
+    const body = page(r);
+    expect(body).toContain('<html lang="en">');
+    expect(body).toContain("<title>Sign-in cancelled · Reroute</title>");
+    expect(body).toContain('name="viewport"');
+    expect(body).toContain("<h1>Sign-in cancelled</h1>");
+    expect(body).toContain('role="alert"');
+    expect(body).toContain(".button:focus-visible");
+    expect(body).toContain("prefers-color-scheme: dark");
+    expect(body).not.toContain("<script");
+    expect(r.headers["cache-control"]).toBe("no-store");
+    expect(r.headers["x-content-type-options"]).toBe("nosniff");
+    expect(String(r.headers["content-security-policy"])).toContain("default-src 'none'");
+  });
+
+  test("API clients (no text/html in Accept) still get the original JSON bodies and statuses", async () => {
+    githubOk();
+    const r = await callback("github", await start("github", "signin"));
+    expect(r.status).toBe(404);
+    expect(JSON.parse(r.body)).toEqual({ error: "No account found, sign up first" });
+    expect((await request("/auth/github/callback?error=access_denied")).status).toBe(403);
+    expect(JSON.parse((await request("/auth/github/callback?code=c&state=x")).body)).toEqual({ error: "Invalid OAuth callback" });
+  });
+
+  test("successful sign-in and sign-up still redirect for browsers too", async () => {
+    githubOk();
+    const signup = await htmlCallback("github", await start("github", "signup"));
+    expect(signup.status).toBe(302);
+    expect(location(signup)).toBe("/search");
+    expect(cookie(signup, "session")).toBeDefined();
+  });
+});

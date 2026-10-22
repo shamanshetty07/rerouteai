@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Reroute · Train search</title>
 <style>
-  :root { --bg:#f7f7f5; --fg:#1c1c1a; --muted:#6b6b66; --card:#fff; --line:#dcdcd6; --accent:#1d4ed8; --err:#b42318; }
+  :root { --bg:#f7f7f5; --fg:#1c1c1a; --muted:#6b6b66; --card:#fff; --line:#dcdcd6; --accent:#1d4ed8; --on-accent:#fff; --err:#b42318; }
   @media (prefers-color-scheme: dark) {
-    :root { --bg:#151514; --fg:#ececea; --muted:#9a9a94; --card:#1f1f1d; --line:#34342f; --accent:#6b93ff; --err:#ff8a7a; }
+    :root { --bg:#151514; --fg:#ececea; --muted:#9a9a94; --card:#1f1f1d; --line:#34342f; --accent:#6b93ff; --on-accent:#0b1020; --err:#ff8a7a; }
   }
   * { box-sizing: border-box; }
   body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui, sans-serif; }
@@ -55,9 +55,18 @@
     .route { grid-template-columns:1fr; }
     .swap { margin:0 auto; transform:rotate(90deg); }
   }
-  .signin-link { margin-right:12px; color:var(--accent); }
-  button { padding:10px 18px; font:inherit; color:#fff; background:var(--accent); border:0; border-radius:8px; cursor:pointer; }
+  button { padding:10px 18px; font:inherit; color:var(--on-accent); background:var(--accent); border:0; border-radius:8px; cursor:pointer; }
   button:disabled { opacity:.45; cursor:not-allowed; }
+  .button { display:inline-block; padding:10px 18px; border-radius:8px; border:1px solid var(--accent);
+            background:var(--accent); color:var(--on-accent); text-decoration:none; }
+  .button.secondary { background:transparent; color:var(--accent); }
+  .button:focus-visible { outline:2px solid var(--fg); outline-offset:2px; }
+  #auth-prompt { display:grid; grid-template-columns:1fr 1fr; gap:16px; background:var(--card);
+                 border:1px solid var(--line); border-radius:12px; padding:20px; margin-bottom:16px; }
+  @media (max-width:560px) { #auth-prompt { grid-template-columns:1fr; } }
+  .auth-group h3 { margin:0 0 4px; font-size:1rem; }
+  .auth-group p { margin:0 0 12px; color:var(--muted); font-size:.875rem; }
+  .auth-links { display:flex; flex-direction:column; gap:8px; align-items:flex-start; }
   #status { margin:20px 0 8px; color:var(--muted); }
   #status.error { color:var(--err); }
   table { width:100%; border-collapse:collapse; background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
@@ -119,6 +128,7 @@
   </form>
 
   <p id="status" role="status" aria-live="polite"></p>
+  <section id="auth-prompt" aria-label="Sign in or sign up" hidden></section>
   <div class="scroll" id="results"></div>
 </main>
 

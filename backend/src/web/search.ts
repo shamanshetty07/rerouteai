@@ -1,4 +1,5 @@
 import { fetchAlternatives, formatDuration, renderJourneys } from "./alternatives.ts";
+import { hideAuthPrompt, showAuthPrompt } from "./authLinks.ts";
 import { initSearchForm, type SearchValues } from "./searchForm.ts";
 import { mockStationSource } from "./stations/stationSource.ts";
 
@@ -6,6 +7,7 @@ const form = document.getElementById("search-form") as HTMLFormElement;
 const submit = document.getElementById("submit") as HTMLButtonElement;
 const statusEl = document.getElementById("status")!;
 const results = document.getElementById("results")!;
+const authPrompt = document.getElementById("auth-prompt")!;
 const modeInput = () => [...form.querySelectorAll<HTMLInputElement>('input[name="mode"]')].find((r) => r.checked)!;
 
 // Time and transfer limit only apply to alternative-journey search.
@@ -28,15 +30,8 @@ function setStatus(message: string, isError = false) {
 }
 
 function needSignIn() {
-  statusEl.className = "error";
-  statusEl.replaceChildren("You need to sign in. ");
-  for (const [provider, label] of [["github", "GitHub"], ["google", "Google"]] as const) {
-    const a = document.createElement("a");
-    a.href = `/auth/${provider}/signin`;
-    a.textContent = `Sign in with ${label}`;
-    a.className = "signin-link";
-    statusEl.append(a);
-  }
+  setStatus("Please sign in to search trains.", true);
+  showAuthPrompt(authPrompt);
 }
 
 type TrainRow = {
@@ -84,6 +79,7 @@ function setStatusWithRetry(message: string, retry: () => void) {
 async function searchAlternatives(values: SearchValues) {
   const { from, to, date, time, maxTransfers } = values;
   if (time === undefined) return setStatus("Choose an earliest departure time.", true);
+  hideAuthPrompt(authPrompt);
   submit.disabled = true;
   // Keep the previous results on screen (dimmed) until the new ones arrive.
   results.setAttribute("aria-busy", "true");
@@ -116,6 +112,7 @@ async function searchAlternatives(values: SearchValues) {
 async function search(values: SearchValues) {
   if (modeInput().value === "alternatives") return searchAlternatives(values);
   const { from, to, date } = values;
+  hideAuthPrompt(authPrompt);
   submit.disabled = true;
   results.replaceChildren();
   setStatus("Searching…");
