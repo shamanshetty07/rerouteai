@@ -31,14 +31,21 @@ export function createInMemoryRailData(data: {
   const stations = new Map(data.stations.map((s) => [s.id, s]));
   const trains = new Map(data.trains.map((t) => [t.number, t]));
 
+  // Route search asks for a station's trains once per frontier label, so index them up front.
+  const byStation = new Map<string, Train[]>();
+  for (const train of [...trains.values()].sort((a, b) => a.number.localeCompare(b.number))) {
+    for (const stop of train.stops) {
+      const list = byStation.get(stop.stationId);
+      if (list) list.push(train);
+      else byStation.set(stop.stationId, [train]);
+    }
+  }
+
   return {
     getStation: async (id) => stations.get(id) ?? null,
     getTrain: async (number) => trains.get(number) ?? null,
     listStations: async () => [...stations.values()],
     listTrains: async () => [...trains.values()],
-    trainsStoppingAt: async (stationId) =>
-      [...trains.values()]
-        .filter((t) => t.stops.some((s) => s.stationId === stationId))
-        .sort((a, b) => a.number.localeCompare(b.number)),
+    trainsStoppingAt: async (stationId) => [...(byStation.get(stationId) ?? [])],
   };
 }

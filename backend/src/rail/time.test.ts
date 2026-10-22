@@ -1,5 +1,15 @@
 import { describe, expect, test } from "bun:test";
-import { addDays, elapsedMinutes, formatScheduleTime, isIsoDate, parseClock, toInstant, weekdayOf } from "./time.ts";
+import {
+  addDays,
+  elapsedMinutes,
+  formatScheduleTime,
+  isIsoDate,
+  istDateOf,
+  istMidnightMs,
+  parseClock,
+  toInstant,
+  weekdayOf,
+} from "./time.ts";
 
 describe("parseClock", () => {
   test("accepts valid 24-hour times", () => {
@@ -77,5 +87,17 @@ describe("dates", () => {
     expect(toInstant("2026-10-19", { dayOffset: 1, time: "00:25" }).toISOString()).toBe("2026-10-19T18:55:00.000Z");
     // The rollover also crosses a month boundary.
     expect(toInstant("2026-10-31", { dayOffset: 1, time: "08:32" }).toISOString()).toBe("2026-11-01T03:02:00.000Z");
+  });
+});
+
+describe("istDateOf / istMidnightMs", () => {
+  test("istDateOf uses the IST calendar day, not the UTC one", () => {
+    expect(istDateOf(new Date("2026-10-19T18:29:59Z"))).toBe("2026-10-19"); // 23:59:59 IST
+    expect(istDateOf(new Date("2026-10-19T18:30:00Z"))).toBe("2026-10-20"); // 00:00 IST
+  });
+
+  test("istMidnightMs is 00:00 IST and rejects invalid dates", () => {
+    expect(new Date(istMidnightMs("2026-10-20")).toISOString()).toBe("2026-10-19T18:30:00.000Z");
+    expect(() => istMidnightMs("2026-02-30")).toThrow(RangeError);
   });
 });

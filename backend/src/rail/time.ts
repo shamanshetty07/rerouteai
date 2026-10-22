@@ -2,6 +2,7 @@ import { WEEKDAYS, type IsoDate, type ScheduleTime, type Weekday } from "./types
 
 export const MINUTES_PER_DAY = 24 * 60;
 const IST_OFFSET = "+05:30"; // India has a single timezone and no daylight saving.
+const IST_OFFSET_MS = 330 * 60_000;
 
 const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -54,4 +55,15 @@ export function toInstant(originDate: IsoDate, t: ScheduleTime): Date {
   const clock = parseClock(t.time);
   if (clock === null) throw new RangeError(`Invalid time "${t.time}"`);
   return new Date(`${addDays(originDate, t.dayOffset)}T${t.time}:00${IST_OFFSET}`);
+}
+
+/** The IST calendar date an instant falls on. */
+export function istDateOf(instant: Date): IsoDate {
+  return new Date(instant.getTime() + IST_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+/** Epoch milliseconds of 00:00 IST on this date; add elapsed minutes to get a schedule instant. */
+export function istMidnightMs(date: IsoDate): number {
+  if (!isIsoDate(date)) throw new RangeError(`Invalid date "${date}"`);
+  return new Date(`${date}T00:00:00${IST_OFFSET}`).getTime();
 }

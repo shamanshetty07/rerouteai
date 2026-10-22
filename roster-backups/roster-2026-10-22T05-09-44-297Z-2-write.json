@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "savedAt": "2026-10-22T05:08:44.880Z",
+  "agents": [
+    {
+      "id": "god",
+      "name": "Michael",
+      "character": "michael",
+      "accent": "lemon",
+      "description": "god — runs the floor, triages requests, escalates only critical calls to you",
+      "project": "hive",
+      "tmuxTarget": "",
+      "cwd": "/Users/shamanshetty/reroute",
+      "status": "idle",
+      "action": "awaiting",
+      "progress": 0,
+      "currentStation": "desk",
+      "ptyId": "pty-god",
+      "command": "claude --model claude-sonnet-5-5 --permission-mode bypassPermissions",
+      "provider": "claude",
+      "model": "claude-sonnet-5-5",
+      "isGod": true
+    },
+    {
+      "id": "pam-mvj2z9fd",
+      "name": "Pam",
+      "character": "pam",
+      "accent": "sky",
+      "description": "a fresh harness",
+      "project": "agenteval",
+      "tmuxTarget": "",
+      "cwd": "/Users/shamanshetty/researchprojects/agenteval",
+      "status": "idle",
+      "action": "starting up",
+      "progress": 0,
+      "currentStation": "desk",
+      "ptyId": "pty-pam-mvj2z9fd",
+      "command": "claude --model claude-opus-5-5 --permission-mode bypassPermissions",
+      "provider": "claude",
+      "model": "claude-opus-5-5"
+    }
+  ],
+  "archived": [],
+  "restorable": [],
+  "queues": {},
+  "selectedId": "pam-mvj2z9fd"
+}

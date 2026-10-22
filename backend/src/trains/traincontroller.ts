@@ -1,5 +1,8 @@
-import { Router, type Response } from "express";
+import { Router, type RequestHandler, type Response } from "express";
 import { requireAuth } from "../auth/middleware.ts";
+import { mockRailData } from "../rail/mockTrains.ts";
+import type { RailData } from "../rail/repository.ts";
+import { findAlternativeJourneys, RouteSearchError, type SearchOptions } from "../rail/routeSearch.ts";
 import { RailRadarError, trainsBetween, type TrainsBetweenParams } from "./railradar.ts";
 import { isStation, searchStations } from "./stations.ts";
 
@@ -45,8 +48,17 @@ function parseSearch(query: Record<string, unknown>): TrainsBetweenParams {
   };
 }
 
+/** Optional integer query value; range checks stay with the route search. */
+function integer(value: unknown, name: string): number | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string" || !/^-?\d+$/.test(value)) throw new ValidationError(`${name} must be an integer`);
+  return Number(value);
+}
+
 function sendError(res: Response, err: unknown) {
   if (err instanceof ValidationError) res.status(400).json({ error: err.message });
+  // Missing timetable data is our problem, not a malformed request.
+  else if (err instanceof RouteSearchError) res.status(err.code === "NO_SCHEDULE_DATA" ? 503 : 400).json({ error: err.message, code: err.code });
   else if (err instanceof RailRadarError) res.status(err.status).json({ error: err.message });
   else {
     console.error(err);
@@ -76,5 +88,39 @@ router.get("/trains/search", requireAuth, async (req, res) => {
     sendError(res, err);
   }
 });
+
+/**
+ * GET /trains/alternatives?from=SBC&to=HYB&date=2026-10-25&time=18:30[&maxTransfers=2]
+ * -> { journeys, warnings }: schedule-feasible multi-train journeys, best first.
+ *
+ * Separate from /trains/search, which proxies RailRadar's direct-train lookup and has its own
+ * response shape. Stations are the rail repository's ids (station codes), not RailRadar's directory.
+ */
+export function alternativesHandler(rail: RailData): RequestHandler {
+  return async (req, res) => {
+    try {
+      const from = text(req.query["from"])?.toUpperCase();
+      const to = text(req.query["to"])?.toUpperCase();
+      const date = text(req.query["date"]);
+      const time = text(req.query["time"]);
+      if (!from || !to) throw new ValidationError("from and to are required station codes, e.g. SBC");
+      if (!date || !time) throw new ValidationError("date (YYYY-MM-DD) and time (HH:MM) are required");
+
+      const maxTransfers = integer(req.query["maxTransfers"], "maxTransfers");
+      const options: Partial<SearchOptions> = maxTransfers === undefined ? {} : { maxTransfers };
+      res.json(
+        await findAlternativeJourneys(
+          rail,
+          { sourceId: from, destinationId: to, date, earliestDeparture: time },
+          options,
+        ),
+      );
+    } catch (err) {
+      sendError(res, err);
+    }
+  };
+}
+
+router.get("/trains/alternatives", requireAuth, alternativesHandler(mockRailData));
 
 export default router;
