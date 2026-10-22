@@ -147,3 +147,64 @@ describe("search form", () => {
     expect(submitted).toHaveLength(0);
   });
 });
+
+describe("alternative-journey fields", () => {
+  let altForm: HTMLFormElement;
+  let alt: SearchForm;
+  let altSubmitted: SearchValues[];
+
+  beforeEach(() => {
+    document.body.innerHTML = `
+      <form id="g" novalidate>
+        <div data-station-field="from"></div><button type="button" data-swap>swap</button><div data-station-field="to"></div>
+        <input name="date" type="date"><p data-date-error hidden></p>
+        <div data-alt-only><input name="time" type="time"><p data-time-error hidden></p></div>
+        <div data-alt-only><input name="maxTransfers" type="number" value="2"><p data-transfers-error hidden></p></div>
+      </form>`;
+    altForm = document.getElementById("g") as HTMLFormElement;
+    altSubmitted = [];
+    alt = initSearchForm(altForm, {
+      source: mockStationSource,
+      onSubmit: (v) => void altSubmitted.push(v),
+      today: () => "2026-10-19",
+      now: () => "09:30",
+    });
+  });
+
+  afterEach(() => {
+    alt.from.destroy();
+    alt.to.destroy();
+  });
+
+  const send = async () => {
+    altForm.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    await flush();
+  };
+
+  test("submits time and maxTransfers with the stations", async () => {
+    await pick(alt.from, "howrah", "HWH");
+    await pick(alt.to, "agra cantt", "AGC");
+    await send();
+    expect(altSubmitted).toEqual([{ from: "HWH", to: "AGC", date: "2026-10-19", time: "09:30", maxTransfers: 2 }]);
+  });
+
+  test("rejects a missing time and out-of-range transfers", async () => {
+    await pick(alt.from, "howrah", "HWH");
+    await pick(alt.to, "agra cantt", "AGC");
+    alt.timeInput!.value = "";
+    alt.maxTransfersInput!.value = "9";
+    await send();
+    expect(altSubmitted).toHaveLength(0);
+    expect(alt.timeInput!.getAttribute("aria-invalid")).toBe("true");
+    expect(alt.maxTransfersInput!.getAttribute("aria-invalid")).toBe("true");
+  });
+
+  test("ignores fields hidden for another search mode", async () => {
+    await pick(alt.from, "howrah", "HWH");
+    await pick(alt.to, "agra cantt", "AGC");
+    for (const f of altForm.querySelectorAll<HTMLElement>("[data-alt-only]")) f.hidden = true;
+    alt.timeInput!.value = "";
+    await send();
+    expect(altSubmitted).toEqual([{ from: "HWH", to: "AGC", date: "2026-10-19" }]);
+  });
+});

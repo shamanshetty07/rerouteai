@@ -1,3 +1,4 @@
+import { fetchAlternatives, formatDuration, renderJourneys } from "./alternatives.ts";
 import { initSearchForm, type SearchValues } from "./searchForm.ts";
 import { mockStationSource } from "./stations/stationSource.ts";
 
@@ -5,6 +6,21 @@ const form = document.getElementById("search-form") as HTMLFormElement;
 const submit = document.getElementById("submit") as HTMLButtonElement;
 const statusEl = document.getElementById("status")!;
 const results = document.getElementById("results")!;
+const modeInput = () => form.querySelector<HTMLInputElement>('input[name="mode"]:checked')!;
+
+// Time and transfer limit only apply to alternative-journey search.
+function syncMode() {
+  const alternatives = modeInput().value === "alternatives";
+  for (const field of form.querySelectorAll<HTMLElement>("[data-alt-only]")) field.hidden = !alternatives;
+  submit.textContent = alternatives ? "Find journeys" : "Search trains";
+}
+form.addEventListener("change", (e) => {
+  if ((e.target as HTMLElement).getAttribute("name") === "mode") {
+    syncMode();
+    results.replaceChildren();
+    setStatus("");
+  }
+});
 
 function setStatus(message: string, isError = false) {
   statusEl.textContent = message;
@@ -32,7 +48,6 @@ type TrainRow = {
 type TrainsResponse = { from: { name: string }; to: { name: string }; trains: TrainRow[] };
 
 const cell = (text: string) => Object.assign(document.createElement("td"), { textContent: text });
-const duration = (m: number) => `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`;
 
 function renderTrains(data: TrainsResponse) {
   results.replaceChildren();
@@ -52,14 +67,55 @@ function renderTrains(data: TrainsResponse) {
       cell(`${t.train.number} ${t.train.name}`),
       cell(t.from.departure),
       cell(t.to.arrival),
-      cell(duration(t.duration)),
+      cell(formatDuration(t.duration)),
       cell(days),
     );
   }
   results.append(table);
 }
 
-async function search({ from, to, date }: SearchValues) {
+function setStatusWithRetry(message: string, retry: () => void) {
+  setStatus(message, true);
+  const button = Object.assign(document.createElement("button"), { type: "button", className: "retry", textContent: "Retry" });
+  button.addEventListener("click", retry);
+  statusEl.append(button);
+}
+
+async function searchAlternatives(values: SearchValues) {
+  const { from, to, date, time, maxTransfers } = values;
+  if (time === undefined) return setStatus("Choose an earliest departure time.", true);
+  submit.disabled = true;
+  // Keep the previous results on screen (dimmed) until the new ones arrive.
+  results.setAttribute("aria-busy", "true");
+  setStatus("Searching…");
+  try {
+    const outcome = await fetchAlternatives({ from, to, date, time, ...(maxTransfers !== undefined && { maxTransfers }) });
+    results.replaceChildren();
+    switch (outcome.kind) {
+      case "ok": {
+        const n = outcome.result.journeys.length;
+        if (!n) return setStatus("No journeys found for that route, date and time. Try a later time or more transfers.");
+        setStatus(`${n} journey option${n === 1 ? "" : "s"}, best first`);
+        return renderJourneys(results, outcome.result);
+      }
+      case "unauthorized":
+        return needSignIn();
+      case "invalid":
+        return setStatus(outcome.message, true);
+      case "unavailable":
+        return setStatusWithRetry(`${outcome.message} Please try again shortly.`, () => void searchAlternatives(values));
+      case "error":
+        return setStatusWithRetry(outcome.message, () => void searchAlternatives(values));
+    }
+  } finally {
+    results.removeAttribute("aria-busy");
+    submit.disabled = false;
+  }
+}
+
+async function search(values: SearchValues) {
+  if (modeInput().value === "alternatives") return searchAlternatives(values);
+  const { from, to, date } = values;
   submit.disabled = true;
   results.replaceChildren();
   setStatus("Searching…");
@@ -76,4 +132,5 @@ async function search({ from, to, date }: SearchValues) {
   }
 }
 
+syncMode();
 initSearchForm(form, { source: mockStationSource, onSubmit: search });

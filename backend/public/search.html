@@ -65,6 +65,22 @@
   th { color:var(--muted); font-weight:500; }
   tr:last-child td { border-bottom:0; }
   .scroll { overflow-x:auto; }
+  fieldset.mode { grid-column:1 / -1; border:0; padding:0; margin:0; display:flex; gap:20px; }
+  fieldset.mode label { display:inline-flex; gap:6px; align-items:center; margin:0; color:var(--fg); }
+  fieldset.mode input { width:auto; }
+  [hidden] { display:none !important; }
+  #results[aria-busy="true"] { opacity:.5; }
+  .retry { margin-left:12px; padding:4px 12px; }
+  .journey { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:12px; }
+  .journey-head h3 { margin:0; font-size:.875rem; color:var(--muted); font-weight:500; }
+  .journey-head p, .legs, .journey-warnings, .search-warnings { margin:0; }
+  .journey-times { font-size:1.125rem; font-weight:600; }
+  .journey-meta { color:var(--muted); font-size:.875rem; }
+  .legs { list-style:none; padding:0; margin-top:12px; display:grid; gap:8px; }
+  .leg { padding-left:12px; border-left:3px solid var(--accent); overflow-wrap:anywhere; }
+  .transfer { padding-left:12px; color:var(--muted); font-size:.875rem; }
+  .journey-warnings, .search-warnings { margin-top:12px; padding-left:20px; color:var(--muted); font-size:.8125rem; }
+  .search-warnings { margin-bottom:12px; }
 </style>
 </head>
 <body>
@@ -77,13 +93,28 @@
       <button type="button" class="swap" data-swap aria-label="Swap source and destination">⇄</button>
       <div data-station-field="to"></div>
     </div>
+    <fieldset class="mode">
+      <legend class="visually-hidden">Search type</legend>
+      <label><input type="radio" name="mode" value="alternatives" checked> Alternative journeys</label>
+      <label><input type="radio" name="mode" value="direct"> Direct trains</label>
+    </fieldset>
     <div>
       <label for="date">Date</label>
       <input id="date" name="date" type="date" required aria-describedby="date-error">
       <p class="field-error" id="date-error" data-date-error role="alert" hidden></p>
     </div>
+    <div data-alt-only>
+      <label for="time">Earliest departure</label>
+      <input id="time" name="time" type="time" required aria-describedby="time-error">
+      <p class="field-error" id="time-error" data-time-error role="alert" hidden></p>
+    </div>
+    <div data-alt-only>
+      <label for="maxTransfers">Maximum transfers</label>
+      <input id="maxTransfers" name="maxTransfers" type="number" min="0" max="4" step="1" value="2" aria-describedby="transfers-error">
+      <p class="field-error" id="transfers-error" data-transfers-error role="alert" hidden></p>
+    </div>
     <div style="align-self:end">
-      <button id="submit" type="submit">Search trains</button>
+      <button id="submit" type="submit">Search</button>
     </div>
   </form>
 
