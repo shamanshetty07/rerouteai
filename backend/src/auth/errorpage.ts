@@ -84,27 +84,38 @@ export function renderAuthErrorPage(failure: AuthFailure): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escape(c.title)} · Reroute</title>
 <style>
-  :root { color-scheme: light dark; --bg:#f7f7f5; --fg:#1c1c1a; --muted:#6b6b66; --card:#fff; --line:#dcdcd6; --accent:#1d4ed8; --on-accent:#fff; --err:#b42318; }
+  :root { color-scheme: light dark; --bg:#f5f3ee; --fg:#0c1a36; --muted:#5d6679; --card:#fff; --line:#e4dfd3; --blue:#2a56f5; --blue-soft:#e8edff; --on-blue:#fff; --err:#b3261e; --err-soft:#fdecea; }
   @media (prefers-color-scheme: dark) {
-    :root { --bg:#151514; --fg:#ececea; --muted:#9a9a94; --card:#1f1f1d; --line:#34342f; --accent:#6b93ff; --on-accent:#0b1020; --err:#ff8a7a; }
+    :root { --bg:#080f22; --fg:#e9eefb; --muted:#9eaac8; --card:#0f1a38; --line:#22305a; --blue:#6a8dff; --blue-soft:#16265a; --on-blue:#06122e; --err:#ff9188; --err-soft:#35161a; }
   }
   * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui, sans-serif; }
-  main { max-width:560px; margin:0 auto; padding:48px 16px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:24px; }
-  h1 { font-size:1.375rem; margin:0 0 8px; }
-  p { margin:0 0 20px; color:var(--muted); }
-  .brand { display:block; margin-bottom:16px; color:var(--muted); font-size:.875rem; }
+  body { margin:0; min-height:100vh; background:var(--bg); color:var(--fg); font:16px/1.55 "SF Pro Display","SF Pro Text",Inter,"Segoe UI",Roboto,system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
+  .band { position:relative; overflow:hidden; background:linear-gradient(120deg, #0a1733 40%, #16327a 100%); height:200px; }
+  .band::after { content:""; position:absolute; left:0; right:0; bottom:14px; height:2px; background:rgb(255 255 255 / .35); }
+  .band::before { content:""; position:absolute; left:0; right:0; bottom:0; height:10px; background:repeating-linear-gradient(90deg, rgb(255 255 255 / .2) 0 8px, transparent 8px 40px); animation:sleepers 1s linear infinite; }
+  @keyframes sleepers { to { background-position:-40px 0; } }
+  main { width:min(560px, 100% - 32px); margin:-92px auto 0; padding-bottom:48px; position:relative; }
+  .brand { display:inline-flex; align-items:center; gap:10px; margin:0 0 20px; color:#fff; font-weight:700; font-size:1.25rem; letter-spacing:-.02em; text-decoration:none; }
+  .mark { width:34px; height:34px; border-radius:11px; background:var(--blue); display:grid; place-items:center; }
+  .mark svg { width:20px; height:20px; fill:none; stroke:var(--on-blue); stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:22px; padding:28px; box-shadow:0 2px 6px rgb(6 15 38 / .1), 0 32px 64px -24px rgb(6 15 38 / .45); }
+  .status { display:inline-flex; align-items:center; gap:8px; padding:4px 12px 4px 8px; margin-bottom:14px; border-radius:999px; background:var(--err-soft); color:var(--err); font-size:.8125rem; font-weight:650; }
+  .status::before { content:"!"; width:18px; height:18px; border-radius:50%; background:var(--err); color:var(--card); font:700 12px/18px system-ui,sans-serif; text-align:center; }
+  h1 { margin:0 0 8px; font-size:1.625rem; line-height:1.15; letter-spacing:-.025em; }
+  p { margin:0 0 24px; color:var(--muted); }
   .actions { display:flex; flex-wrap:wrap; gap:12px; }
-  .button { display:inline-block; padding:10px 18px; border-radius:8px; border:1px solid var(--accent); background:var(--accent); color:var(--on-accent); text-decoration:none; font:inherit; }
-  .button.secondary { background:transparent; color:var(--accent); }
-  .button:focus-visible { outline:2px solid var(--fg); outline-offset:2px; }
-  .status { color:var(--err); font-size:.8125rem; margin-bottom:4px; }
+  .button { display:inline-flex; align-items:center; justify-content:center; min-height:46px; padding:0 20px; border-radius:12px; border:1.5px solid var(--blue); background:var(--blue); color:var(--on-blue); text-decoration:none; font:inherit; font-weight:600; font-size:.9375rem; transition:background .2s; }
+  .button.secondary { background:transparent; color:var(--blue); }
+  .button.secondary:hover { background:var(--blue-soft); }
+  .button:focus-visible, .brand:focus-visible { outline:3px solid var(--blue); outline-offset:3px; }
+  @media (max-width:480px) { .actions .button { flex:1 1 100%; } .card { padding:22px 18px; } }
+  @media (prefers-reduced-motion: reduce) { .band::before { animation:none; } }
 </style>
 </head>
 <body>
+<div class="band" aria-hidden="true"></div>
 <main>
-  <span class="brand">Reroute</span>
+  <a class="brand" href="/search"><span class="mark"><svg viewBox="0 0 24 24"><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M6 15.8V12a4 4 0 0 1 4-4h4"/></svg></span>Reroute</a>
   <div class="card" role="alert">
     <div class="status">Sign-in problem</div>
     <h1>${escape(c.title)}</h1>
