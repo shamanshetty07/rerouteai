@@ -84,21 +84,21 @@ export function renderAuthErrorPage(failure: AuthFailure): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escape(c.title)} · Reroute</title>
 <style>
-  :root { color-scheme: light dark; --bg:#f5f3ee; --fg:#0c1a36; --muted:#5d6679; --card:#fff; --line:#e4dfd3; --blue:#2a56f5; --blue-soft:#e8edff; --on-blue:#fff; --err:#b3261e; --err-soft:#fdecea; }
+  :root { color-scheme: light dark; --bg:#f4f4f4; --fg:#0a0a0a; --muted:#5c5c5c; --card:#fff; --line:#d9d9d9; --blue:#0a0a0a; --blue-soft:#ececec; --on-blue:#fff; --err:#0a0a0a; --err-soft:#ececec; }
   @media (prefers-color-scheme: dark) {
-    :root { --bg:#080f22; --fg:#e9eefb; --muted:#9eaac8; --card:#0f1a38; --line:#22305a; --blue:#6a8dff; --blue-soft:#16265a; --on-blue:#06122e; --err:#ff9188; --err-soft:#35161a; }
+    :root { --bg:#000; --fg:#fff; --muted:#a0a0a0; --card:#0d0d0d; --line:#2b2b2b; --blue:#fff; --blue-soft:#1c1c1c; --on-blue:#000; --err:#fff; --err-soft:#1a1a1a; }
   }
   * { box-sizing: border-box; }
   body { margin:0; min-height:100vh; background:var(--bg); color:var(--fg); font:16px/1.55 "SF Pro Display","SF Pro Text",Inter,"Segoe UI",Roboto,system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
-  .band { position:relative; overflow:hidden; background:linear-gradient(120deg, #0a1733 40%, #16327a 100%); height:200px; }
+  .band { position:relative; overflow:hidden; background:linear-gradient(120deg, #000 40%, #2e2e2e 100%); height:200px; }
   .band::after { content:""; position:absolute; left:0; right:0; bottom:14px; height:2px; background:rgb(255 255 255 / .35); }
   .band::before { content:""; position:absolute; left:0; right:0; bottom:0; height:10px; background:repeating-linear-gradient(90deg, rgb(255 255 255 / .2) 0 8px, transparent 8px 40px); animation:sleepers 1s linear infinite; }
   @keyframes sleepers { to { background-position:-40px 0; } }
   main { width:min(560px, 100% - 32px); margin:-92px auto 0; padding-bottom:48px; position:relative; }
   .brand { display:inline-flex; align-items:center; gap:10px; margin:0 0 20px; color:#fff; font-weight:700; font-size:1.25rem; letter-spacing:-.02em; text-decoration:none; }
-  .mark { width:34px; height:34px; border-radius:11px; background:var(--blue); display:grid; place-items:center; }
-  .mark svg { width:20px; height:20px; fill:none; stroke:var(--on-blue); stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:22px; padding:28px; box-shadow:0 2px 6px rgb(6 15 38 / .1), 0 32px 64px -24px rgb(6 15 38 / .45); }
+  .mark { width:34px; height:34px; border-radius:11px; background:#fff; display:grid; place-items:center; }
+  .mark svg { width:20px; height:20px; fill:none; stroke:#000; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:22px; padding:28px; box-shadow:0 2px 6px rgb(0 0 0 / .1), 0 32px 64px -24px rgb(0 0 0 / .5); }
   .status { display:inline-flex; align-items:center; gap:8px; padding:4px 12px 4px 8px; margin-bottom:14px; border-radius:999px; background:var(--err-soft); color:var(--err); font-size:.8125rem; font-weight:650; }
   .status::before { content:"!"; width:18px; height:18px; border-radius:50%; background:var(--err); color:var(--card); font:700 12px/18px system-ui,sans-serif; text-align:center; }
   h1 { margin:0 0 8px; font-size:1.625rem; line-height:1.15; letter-spacing:-.025em; }
