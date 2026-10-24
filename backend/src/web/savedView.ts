@@ -99,6 +99,8 @@ export type SavedViewElements = {
   list: HTMLElement;
   /** The sign-in / sign-up panel for this view. */
   authPrompt: HTMLElement;
+  /** Optional illustrated empty state, shown instead of an empty list. */
+  empty?: HTMLElement;
 };
 
 export type SavedView = {
@@ -106,17 +108,26 @@ export type SavedView = {
   load(): Promise<void>;
 };
 
-export function initSavedView({ status, list, authPrompt }: SavedViewElements, api: Pick<SavedApi, "list" | "remove"> = defaultSavedApi): SavedView {
+export function initSavedView({ status, list, authPrompt, empty }: SavedViewElements, api: Pick<SavedApi, "list" | "remove"> = defaultSavedApi): SavedView {
   let loading = false;
 
   const setStatus = (message: string, isError = false, retry?: () => void) => {
     status.textContent = message;
     status.className = isError ? "error" : "";
+    if (!isError && message.endsWith("…")) status.dataset["state"] = "loading";
+    else delete status.dataset["state"];
+    if (empty) empty.hidden = true;
     if (retry) status.append(button("Retry", "retry", retry));
   };
 
   function showEmptyIfNeeded() {
-    if (list.children.length === 0) setStatus("You haven't saved any journeys yet. Search for a journey and press Save.");
+    if (list.children.length === 0) {
+      setStatus("You haven't saved any journeys yet. Search for a journey and press Save.");
+      if (empty) {
+        empty.hidden = false;
+        status.dataset["state"] = "empty"; // the empty card says it visually; the live region still announces it
+      }
+    }
   }
 
   function card(saved: SavedJourney): HTMLElement {

@@ -3,182 +3,176 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Reroute · Train search</title>
-<style>
-  /* Visual language borrowed from integrous.in: pale paper, near-black ink, one coral accent,
-     2px corners, serif display type, mono micro-labels and coral corner brackets on cards. */
-  :root { --bg:#f4f4f4; --fg:#1c1c1c; --muted:#1c1c1c99; --card:#fff; --line:#1c1c1c33; --hover:#1c1c1c0d;
-          --accent:#e85a6e; --accent-soft:#e85a6e1a; --on-accent:#fff; --ink:#1c1c1c; --on-ink:#fff; --ink-hover:#333;
-          --err:#b42318; --radius:2px;
-          --serif:Aleo, "Iowan Old Style", Georgia, serif;
-          --sans:"Host Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
-          --mono:"Azeret Mono", ui-monospace, "SF Mono", Menlo, monospace; }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg:#151515; --fg:#f3f3f3; --muted:#ffffff99; --card:#1c1c1c; --line:#ffffff33; --hover:#ffffff0d;
-            --accent:#ef7586; --accent-soft:#e85a6e26; --on-accent:#1c1c1c; --ink:#f3f3f3; --on-ink:#1c1c1c; --ink-hover:#ddd;
-            --err:#ff9a9a; }
-  }
-  * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.7 var(--sans); font-feature-settings:"kern","liga","calt"; }
-  main { max-width:760px; margin:0 auto; padding:40px 16px 64px; }
-  h1 { font:600 2.25rem/1.1 var(--serif); letter-spacing:-.01em; margin:0 0 24px; }
-  h1::after { content:""; display:block; width:40px; height:2px; background:var(--accent); margin-top:12px; }
-  .cad, .journey { background-image:linear-gradient(var(--accent),var(--accent)),linear-gradient(var(--accent),var(--accent)),linear-gradient(var(--accent),var(--accent)),linear-gradient(var(--accent),var(--accent)),linear-gradient(var(--accent),var(--accent)),linear-gradient(var(--accent),var(--accent)),linear-gradient(var(--accent),var(--accent)),linear-gradient(var(--accent),var(--accent));
-         background-repeat:no-repeat; background-size:12px 2px,2px 12px,12px 2px,2px 12px,12px 2px,2px 12px,12px 2px,2px 12px;
-         background-position:0 0,0 0,100% 0,100% 0,0 100%,0 100%,100% 100%,100% 100%; }
-  form, #auth-prompt, #saved-auth-prompt, .journey, table { background-color:var(--card); border:1px solid var(--line); border-radius:var(--radius); }
-  form { padding:24px; display:grid; gap:20px; grid-template-columns:1fr 1fr; }
-  .full { grid-column:1 / -1; }
-  @media (max-width:560px) { form { grid-template-columns:1fr; } }
-  label, legend { display:block; font:500 .6875rem/1.4 var(--mono); text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin-bottom:6px; }
-  input { width:100%; padding:11px 12px; font:inherit; color:var(--fg); background:var(--card);
-          border:1px solid var(--line); border-radius:var(--radius); transition:border-color .15s, box-shadow .15s; }
-  input:hover { border-color:var(--fg); }
-  input:focus-visible, button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
-  input:focus-visible { border-color:var(--accent); outline-offset:0; box-shadow:0 0 0 3px var(--accent-soft); }
-  input[aria-invalid="true"] { border-color:var(--err); }
-  .field { position:relative; }
-  .station-field { position:relative; min-width:0; }
-  .station-input-wrap { position:relative; }
-  .station-input-wrap input { padding-right:36px; text-overflow:ellipsis; }
-  .station-clear { position:absolute; right:4px; top:50%; transform:translateY(-50%); width:28px; height:28px;
-                   padding:0; line-height:1; font-size:1.25rem; color:var(--muted); background:none; border-radius:var(--radius); }
-  .station-clear:hover { color:var(--fg); background:var(--hover); }
-  .station-options { position:absolute; z-index:10; left:0; right:0; top:100%; margin:4px 0 0; padding:4px;
-                     list-style:none; background:var(--card); border:1px solid var(--fg); border-radius:var(--radius);
-                     max-height:min(320px, 50vh); overflow:auto; box-shadow:0 12px 32px rgb(0 0 0 / .14); }
-  .station-options[hidden] { display:none; }
-  .station-option { display:flex; flex-direction:column; padding:8px 10px; border-radius:var(--radius); cursor:pointer; }
-  .station-name { font-weight:500; overflow-wrap:anywhere; }
-  .station-sub { font:.75rem/1.4 var(--mono); color:var(--muted); }
-  .station-option:hover { background:var(--hover); }
-  .station-option.is-selected .station-name::after { content:" ✓"; color:var(--accent); }
-  .station-option[aria-selected="true"] { background:var(--ink); color:var(--on-ink); }
-  .station-option[aria-selected="true"] .station-sub, .station-option[aria-selected="true"] .station-name::after { color:inherit; opacity:.8; }
-  .station-option[aria-disabled="true"] { opacity:.5; cursor:not-allowed; }
-  .station-option[aria-disabled="true"]:hover { background:none; }
-  .station-empty { padding:8px 10px; color:var(--muted); }
-  .station-meta { margin:4px 0 0; min-height:1.25em; font-size:.8125rem; color:var(--muted); }
-  .station-error, .field-error { margin:4px 0 0; font-size:.8125rem; color:var(--err); }
-  .station-error[hidden], .field-error[hidden] { display:none; }
-  .visually-hidden { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
-  .route { grid-column:1 / -1; display:grid; grid-template-columns:1fr auto 1fr; gap:12px; align-items:start; }
-  .swap { margin-top:26px; width:40px; height:40px; padding:0; font-size:1.125rem; background:var(--card);
-          color:var(--fg); border:1px solid var(--line); border-radius:var(--radius); transition:border-color .15s, color .15s, transform .2s; }
-  .swap:hover { background:var(--card); color:var(--accent); border-color:var(--accent); }
-  @media (max-width:560px) {
-    .route { grid-template-columns:1fr; }
-    .swap { margin:0 auto; transform:rotate(90deg); }
-  }
-  button { padding:11px 22px; font:500 .9375rem/1.2 var(--sans); color:var(--on-ink); background:var(--ink); border:1px solid var(--ink);
-           border-radius:var(--radius); cursor:pointer; transition:background .18s, color .18s, border-color .18s; }
-  button:hover:not(:disabled) { background:var(--ink-hover); }
-  button:disabled { opacity:.45; cursor:not-allowed; }
-  .button { display:inline-block; padding:11px 22px; border-radius:var(--radius); border:1px solid var(--ink);
-            background:var(--ink); color:var(--on-ink); text-decoration:none; font-weight:500; transition:background .18s, color .18s; }
-  .button:hover { background:var(--ink-hover); }
-  .button.secondary { background:transparent; color:var(--fg); }
-  .button.secondary:hover { background:var(--ink); color:var(--on-ink); }
-  .button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
-  #auth-prompt, #saved-auth-prompt { display:grid; grid-template-columns:1fr 1fr; gap:20px; padding:24px; margin-bottom:16px; }
-  @media (max-width:560px) { #auth-prompt, #saved-auth-prompt { grid-template-columns:1fr; } }
-  .auth-group h3 { margin:0 0 4px; font:600 1.125rem/1.3 var(--serif); }
-  .auth-group p { margin:0 0 12px; color:var(--muted); font-size:.875rem; }
-  .auth-links { display:flex; flex-direction:column; gap:8px; align-items:flex-start; }
-  .tabs { display:flex; gap:24px; margin:-8px 0 24px; border-bottom:1px solid var(--line); }
-  .tabs a { padding:8px 0; margin-bottom:-1px; border-bottom:2px solid transparent; color:var(--muted); text-decoration:none;
-            font:500 .75rem/1.4 var(--mono); text-transform:uppercase; letter-spacing:.08em; transition:color .15s, border-color .15s; }
-  .tabs a:hover { color:var(--fg); }
-  .tabs a[aria-current="page"] { color:var(--fg); border-bottom-color:var(--accent); }
-  .tabs a:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
-  .view-title { font:600 1.5rem/1.2 var(--serif); margin:0 0 8px; }
-  .journey-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin-top:16px; }
-  .journey-actions button { padding:7px 14px; font-size:.8125rem; }
-  button.secondary { background:transparent; color:var(--fg); border:1px solid var(--fg); }
-  button.secondary:hover:not(:disabled) { background:var(--ink); color:var(--on-ink); }
-  button.danger { background:transparent; color:var(--err); border:1px solid var(--err); }
-  button.danger:hover:not(:disabled) { background:var(--err); color:var(--card); }
-  .action-note { font-size:.8125rem; color:var(--muted); }
-  .action-note.error { color:var(--err); }
-  #saved-list[aria-busy="true"] { opacity:.5; }
-  #status { margin:20px 0 8px; color:var(--muted); font:.8125rem/1.5 var(--mono); }
-  #status.error { color:var(--err); }
-  table { width:100%; border-collapse:collapse; overflow:hidden; }
-  th, td { text-align:left; padding:12px; border-bottom:1px solid var(--line); font-size:.9375rem; }
-  th { color:var(--muted); font:500 .6875rem/1.4 var(--mono); text-transform:uppercase; letter-spacing:.08em; }
-  tr:last-child td { border-bottom:0; }
-  .scroll { overflow-x:auto; }
-  fieldset.mode { grid-column:1 / -1; border:0; padding:0; margin:0; display:flex; gap:24px; flex-wrap:wrap; }
-  fieldset.mode label { display:inline-flex; gap:8px; align-items:center; margin:0; color:var(--fg); font:500 .9375rem/1.4 var(--sans); text-transform:none; letter-spacing:0; }
-  fieldset.mode input { width:auto; accent-color:var(--accent); }
-  [hidden] { display:none !important; }
-  #results[aria-busy="true"] { opacity:.5; }
-  .retry { margin-left:12px; padding:4px 12px; }
-  .journey { padding:20px; margin-bottom:16px; }
-  .journey-head h3 { margin:0; font:500 .6875rem/1.4 var(--mono); text-transform:uppercase; letter-spacing:.08em; color:var(--muted); }
-  .journey-head p, .legs, .journey-warnings, .search-warnings { margin:0; }
-  .journey-times { font:600 1.375rem/1.3 var(--serif); }
-  .journey-meta { color:var(--muted); font:.8125rem/1.5 var(--mono); }
-  .legs { list-style:none; padding:0; margin-top:14px; display:grid; gap:10px; }
-  .leg { padding-left:12px; border-left:2px solid var(--accent); overflow-wrap:anywhere; }
-  .transfer { padding-left:12px; color:var(--muted); font:.8125rem/1.5 var(--mono); }
-  .journey-warnings, .search-warnings { margin-top:12px; padding-left:20px; color:var(--muted); font-size:.8125rem; }
-  .search-warnings { margin-bottom:12px; }
-</style>
+<meta name="color-scheme" content="light dark">
+<title>Reroute · Find another way there</title>
+<link rel="stylesheet" href="/reroute.css">
 </head>
 <body>
-<main>
-  <h1>Reroute</h1>
-  <nav class="tabs" aria-label="Sections">
-    <a href="#search" data-view="search" aria-current="page">Search</a>
-    <a href="#saved" data-view="saved">Saved journeys</a>
-  </nav>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-swap" viewBox="0 0 24 24"><path d="M7 7h13m0 0-4-4m4 4-4 4M17 17H4m0 0 4-4m-4 4 4 4"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+    <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M6 4h12v17l-6-4-6 4z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4.5 4.5L19 7"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5v.01"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
+  </defs>
+</svg>
 
-  <div id="search-view">
+<a class="skip-link" href="#main">Skip to content</a>
 
-  <form id="search-form" class="cad" autocomplete="off" novalidate>
-    <div class="route">
-      <div data-station-field="from"></div>
-      <button type="button" class="swap" data-swap aria-label="Swap source and destination">⇄</button>
-      <div data-station-field="to"></div>
+<div class="hero">
+  <div class="hero-art" aria-hidden="true">
+    <div class="hero-map"></div>
+    <div class="hero-track">
+      <div class="masts"></div>
+      <div class="hero-train">
+        <svg viewBox="0 0 640 64" fill="none">
+          <g stroke="#fff" stroke-opacity=".28" stroke-width="1.5">
+            <rect x="8" y="14" width="112" height="36" rx="8" fill="#16327a"/>
+            <rect x="128" y="14" width="112" height="36" rx="8" fill="#16327a"/>
+            <rect x="248" y="14" width="112" height="36" rx="8" fill="#16327a"/>
+            <rect x="368" y="14" width="112" height="36" rx="8" fill="#16327a"/>
+            <path d="M488 50V20q0-6 6-6h72q22 0 44 22l12 14z" fill="#2a56f5"/>
+          </g>
+          <g fill="#bcd0ff" fill-opacity=".85">
+            <rect x="20" y="22" width="18" height="12" rx="3"/><rect x="46" y="22" width="18" height="12" rx="3"/><rect x="72" y="22" width="18" height="12" rx="3"/><rect x="98" y="22" width="14" height="12" rx="3"/>
+            <rect x="140" y="22" width="18" height="12" rx="3"/><rect x="166" y="22" width="18" height="12" rx="3"/><rect x="192" y="22" width="18" height="12" rx="3"/><rect x="218" y="22" width="14" height="12" rx="3"/>
+            <rect x="260" y="22" width="18" height="12" rx="3"/><rect x="286" y="22" width="18" height="12" rx="3"/><rect x="312" y="22" width="18" height="12" rx="3"/><rect x="338" y="22" width="14" height="12" rx="3"/>
+            <rect x="380" y="22" width="18" height="12" rx="3"/><rect x="406" y="22" width="18" height="12" rx="3"/><rect x="432" y="22" width="18" height="12" rx="3"/><rect x="458" y="22" width="14" height="12" rx="3"/>
+            <path d="M590 22h-16v12h34z"/>
+          </g>
+          <rect x="8" y="40" width="472" height="3" fill="#2a56f5" fill-opacity=".9"/>
+          <circle cx="640" cy="46" r="3" fill="#ffe08a"/>
+          <g fill="#0a1733" stroke="#fff" stroke-opacity=".35" stroke-width="1.5"><circle cx="40" cy="55" r="5"/><circle cx="90" cy="55" r="5"/><circle cx="160" cy="55" r="5"/><circle cx="210" cy="55" r="5"/><circle cx="280" cy="55" r="5"/><circle cx="330" cy="55" r="5"/><circle cx="400" cy="55" r="5"/><circle cx="450" cy="55" r="5"/><circle cx="520" cy="55" r="5"/><circle cx="600" cy="55" r="5"/></g>
+        </svg>
+      </div>
+      <div class="rail"></div>
+      <div class="sleepers"></div>
     </div>
-    <fieldset class="mode">
-      <legend class="visually-hidden">Search type</legend>
-      <label><input type="radio" name="mode" value="alternatives" checked> Alternative journeys</label>
-      <label><input type="radio" name="mode" value="direct"> Direct trains</label>
-    </fieldset>
-    <div>
-      <label for="date">Date</label>
-      <input id="date" name="date" type="date" required aria-describedby="date-error">
-      <p class="field-error" id="date-error" data-date-error role="alert" hidden></p>
-    </div>
-    <div data-alt-only>
-      <label for="time">Earliest departure</label>
-      <input id="time" name="time" type="time" required aria-describedby="time-error">
-      <p class="field-error" id="time-error" data-time-error role="alert" hidden></p>
-    </div>
-    <div data-alt-only>
-      <label for="maxTransfers">Maximum transfers</label>
-      <input id="maxTransfers" name="maxTransfers" type="number" min="0" max="4" step="1" value="2" aria-describedby="transfers-error">
-      <p class="field-error" id="transfers-error" data-transfers-error role="alert" hidden></p>
-    </div>
-    <div style="align-self:end">
-      <button id="submit" type="submit">Search</button>
-    </div>
-  </form>
-
-  <p id="status" role="status" aria-live="polite"></p>
-  <section id="auth-prompt" aria-label="Sign in or sign up" hidden></section>
-  <div class="scroll" id="results"></div>
   </div>
 
-  <div id="saved-view" hidden>
-    <h2 class="view-title">Saved journeys</h2>
-    <p id="saved-status" role="status" aria-live="polite"></p>
-    <section id="saved-auth-prompt" aria-label="Sign in or sign up" hidden></section>
-    <div id="saved-list"></div>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="#search" aria-label="Reroute home">
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M6 15.8V12a4 4 0 0 1 4-4h4"/></svg></span>
+        Reroute
+      </a>
+      <nav class="tabs" aria-label="Sections">
+        <a href="#search" data-view="search" aria-current="page">Search</a>
+        <a href="#saved" data-view="saved">Saved journeys</a>
+      </nav>
+      <div class="header-actions">
+        <button type="button" class="pill-btn icon-only" id="theme-toggle" aria-label="Switch colour theme">
+          <svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg>
+        </button>
+        <button type="button" class="pill-btn" data-open-auth>Sign in</button>
+        <button type="button" class="pill-btn solid" data-open-auth>Sign up</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap hero-copy">
+    <span class="eyebrow">Indian Railways journey planner</span>
+    <h1>No direct train? <em>Find another way there.</em></h1>
+    <p class="hero-sub">Reroute connects trains for you. Compare journeys by departure, duration and changes, and keep the ones you like.</p>
+    <h2 class="saved-heading">Saved journeys</h2>
+    <p class="saved-sub">The journeys you kept, newest first.</p>
+  </div>
+</div>
+
+<main id="main">
+  <div class="wrap">
+
+    <div id="search-view">
+      <form id="search-form" class="search-card" autocomplete="off" novalidate aria-label="Journey search">
+        <fieldset class="mode">
+          <legend class="visually-hidden">Search type</legend>
+          <div class="segmented">
+            <label><input type="radio" name="mode" value="alternatives" checked><span>Alternative journeys</span></label>
+            <label><input type="radio" name="mode" value="direct"><span>Direct trains</span></label>
+          </div>
+          <p class="mode-hint" id="mode-hint">Connecting journeys with up to four changes, ranked best first.</p>
+        </fieldset>
+
+        <div class="route">
+          <div data-station-field="from"></div>
+          <button type="button" class="swap" data-swap aria-label="Swap source and destination"><svg class="icon" aria-hidden="true"><use href="#i-swap"/></svg></button>
+          <div data-station-field="to"></div>
+        </div>
+
+        <div class="field">
+          <label for="date">Travel date</label>
+          <input id="date" name="date" type="date" required aria-describedby="date-error">
+          <p class="field-error" id="date-error" data-date-error role="alert" hidden></p>
+        </div>
+        <div class="field" data-alt-only>
+          <label for="time">Earliest departure</label>
+          <input id="time" name="time" type="time" required aria-describedby="time-hint time-error">
+          <p class="hint" id="time-hint">Journeys leave at or after this time.</p>
+          <p class="field-error" id="time-error" data-time-error role="alert" hidden></p>
+        </div>
+        <div class="field" data-alt-only>
+          <label for="maxTransfers">Maximum transfers</label>
+          <input id="maxTransfers" name="maxTransfers" type="number" min="0" max="4" step="1" value="2" inputmode="numeric" aria-describedby="transfers-hint transfers-error">
+          <p class="hint" id="transfers-hint">0 to 4. More changes can open up more options.</p>
+          <p class="field-error" id="transfers-error" data-transfers-error role="alert" hidden></p>
+        </div>
+        <div class="submit-row">
+          <button id="submit" class="btn-primary" type="submit">
+            <svg class="icon icon-search" aria-hidden="true"><use href="#i-search"/></svg>
+            <span class="spinner" aria-hidden="true"></span>
+            <span id="submit-label">Find journeys</span>
+          </button>
+        </div>
+      </form>
+
+      <div class="status-slot">
+        <p id="status" role="status" aria-live="polite"></p>
+      </div>
+      <section id="auth-prompt" class="panel auth-panel" aria-label="Sign in or sign up" hidden></section>
+      <div id="results"></div>
+      <p class="results-note" id="results-note" hidden>
+        <svg class="icon" aria-hidden="true"><use href="#i-info"/></svg>
+        <span>Suggestions are built from timetable data only. They don't include live running status, delays, platform changes, seat availability or fares, so check with the official Indian Railways sources before you travel.</span>
+      </p>
+    </div>
+
+    <div id="saved-view" hidden>
+      <div class="status-slot">
+        <p id="saved-status" role="status" aria-live="polite"></p>
+      </div>
+      <section id="saved-auth-prompt" class="panel auth-panel" aria-label="Sign in or sign up" hidden></section>
+      <div id="saved-list" class="results-list"></div>
+      <div id="saved-empty" class="empty-state" hidden>
+        <svg viewBox="0 0 96 96" fill="none" aria-hidden="true">
+          <rect x="10" y="22" width="76" height="52" rx="10" stroke="currentColor" stroke-width="3" opacity=".35"/>
+          <path d="M66 22v52" stroke="currentColor" stroke-width="3" stroke-dasharray="3 6" opacity=".35"/>
+          <circle cx="28" cy="48" r="5" stroke="#2a56f5" stroke-width="3"/>
+          <path d="M33 48h18" stroke="#2a56f5" stroke-width="3" stroke-linecap="round"/>
+          <path d="M75 42v12" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".35"/>
+        </svg>
+        <h2>Nothing saved yet</h2>
+        <p>Search for a journey and press Save. It will wait for you here.</p>
+        <a class="btn" href="#search">Search journeys</a>
+      </div>
+    </div>
+
   </div>
 </main>
+
+<dialog id="auth-dialog" aria-labelledby="auth-dialog-title">
+  <div class="dialog-head">
+    <h2 id="auth-dialog-title">Welcome to Reroute</h2>
+    <button type="button" class="dialog-close" data-close-auth aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>
+  </div>
+  <section id="dialog-auth" class="panel auth-panel" aria-label="Sign in or sign up"></section>
+</dialog>
 
 <script type="module" src="/assets/search.js"></script>
 </body>
