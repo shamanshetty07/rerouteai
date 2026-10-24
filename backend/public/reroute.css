@@ -3,43 +3,47 @@
    amber reserved for "change trains" and caveats (a railway signal colour, not decoration).
    System fonts only: the CSP does not allow external font hosts. */
 
+/* Reroute design system, strictly black and white (plus neutral greys).
+   State is carried by shape, weight and icons rather than hue: errors get a heavy border and "!",
+   warnings and transfers are dashed, selected states are inverted. System fonts only (CSP). */
+
 :root {
   color-scheme: light;
-  --navy-950: #060f26;
-  --navy-900: #0a1733;
-  --navy-800: #0f2250;
-  --navy-700: #16327a;
+  --navy-950: #000000;
+  --navy-900: #0a0a0a;
+  --navy-800: #1a1a1a;
+  --navy-700: #2e2e2e;
 
-  --bg: #f5f3ee;
+  --bg: #f4f4f4;
   --surface: #ffffff;
-  --surface-2: #faf8f3;
-  --surface-sunk: #efece4;
-  --border: #e4dfd3;
-  --border-strong: #cfc8b8;
-  --text: #0c1a36;
-  --text-2: #3d4963;
-  --muted: #5d6679;
+  --surface-2: #fafafa;
+  --surface-sunk: #ececec;
+  --border: #d9d9d9;
+  --border-strong: #a6a6a6;
+  --text: #0a0a0a;
+  --text-2: #333333;
+  --muted: #5c5c5c;
 
-  --blue: #2a56f5;
-  --blue-hover: #1d44d6;
-  --blue-soft: #e8edff;
+  --blue: #0a0a0a;
+  --blue-hover: #333333;
+  --blue-soft: #ececec;
   --on-blue: #ffffff;
-  --ring: rgb(42 86 245 / 0.35);
+  --ring: rgb(0 0 0 / 0.3);
 
-  --amber: #a14b00;
-  --amber-soft: #fff4e0;
-  --amber-line: #f0c27a;
-  --red: #b3261e;
-  --red-soft: #fdecea;
-  --green: #12704a;
-  --green-soft: #e4f5ec;
+  --amber: #262626;
+  --amber-soft: #f0f0f0;
+  --amber-line: #8c8c8c;
+  --red: #0a0a0a;
+  --red-soft: #f0f0f0;
+  --green: #0a0a0a;
+  --green-soft: #ececec;
 
   --radius-sm: 10px;
   --radius: 14px;
   --radius-lg: 22px;
-  --shadow-card: 0 1px 2px rgb(12 26 54 / 0.05), 0 8px 24px -12px rgb(12 26 54 / 0.18);
-  --shadow-lift: 0 2px 4px rgb(12 26 54 / 0.06), 0 18px 40px -16px rgb(12 26 54 / 0.28);
-  --shadow-form: 0 2px 6px rgb(6 15 38 / 0.1), 0 32px 64px -24px rgb(6 15 38 / 0.45);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.05), 0 8px 24px -12px rgb(0 0 0 / 0.18);
+  --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.06), 0 18px 40px -16px rgb(0 0 0 / 0.3);
+  --shadow-form: 0 2px 6px rgb(0 0 0 / 0.1), 0 32px 64px -24px rgb(0 0 0 / 0.5);
 
   --sans: "SF Pro Display", "SF Pro Text", Inter, "Segoe UI Variable Display", "Segoe UI", Roboto, system-ui, -apple-system, sans-serif;
   --mono: "SF Mono", "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
@@ -49,56 +53,56 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg: #080f22;
-    --surface: #0f1a38;
-    --surface-2: #132042;
-    --surface-sunk: #0b1530;
-    --border: #22305a;
-    --border-strong: #34467c;
-    --text: #e9eefb;
-    --text-2: #c0cae3;
-    --muted: #9eaac8;
-    --blue: #6a8dff;
-    --blue-hover: #86a2ff;
-    --blue-soft: #16265a;
-    --on-blue: #06122e;
-    --ring: rgb(106 141 255 / 0.45);
-    --amber: #ffbe5c;
-    --amber-soft: #2a2010;
-    --amber-line: #6b4a14;
-    --red: #ff9188;
-    --red-soft: #35161a;
-    --green: #6fdca8;
-    --green-soft: #0f2a21;
-    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px -12px rgb(0 0 0 / 0.6);
-    --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.3), 0 18px 40px -16px rgb(0 0 0 / 0.7);
+    --bg: #000000;
+    --surface: #0d0d0d;
+    --surface-2: #141414;
+    --surface-sunk: #080808;
+    --border: #2b2b2b;
+    --border-strong: #4a4a4a;
+    --text: #ffffff;
+    --text-2: #d0d0d0;
+    --muted: #a0a0a0;
+    --blue: #ffffff;
+    --blue-hover: #d9d9d9;
+    --blue-soft: #1c1c1c;
+    --on-blue: #000000;
+    --ring: rgb(255 255 255 / 0.45);
+    --amber: #e6e6e6;
+    --amber-soft: #161616;
+    --amber-line: #666666;
+    --red: #ffffff;
+    --red-soft: #1a1a1a;
+    --green: #ffffff;
+    --green-soft: #1a1a1a;
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.5), 0 8px 24px -12px rgb(0 0 0 / 0.8);
+    --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.5), 0 18px 40px -16px rgb(0 0 0 / 0.9);
   }
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #080f22;
-  --surface: #0f1a38;
-  --surface-2: #132042;
-  --surface-sunk: #0b1530;
-  --border: #22305a;
-  --border-strong: #34467c;
-  --text: #e9eefb;
-  --text-2: #c0cae3;
-  --muted: #9eaac8;
-  --blue: #6a8dff;
-  --blue-hover: #86a2ff;
-  --blue-soft: #16265a;
-  --on-blue: #06122e;
-  --ring: rgb(106 141 255 / 0.45);
-  --amber: #ffbe5c;
-  --amber-soft: #2a2010;
-  --amber-line: #6b4a14;
-  --red: #ff9188;
-  --red-soft: #35161a;
-  --green: #6fdca8;
-  --green-soft: #0f2a21;
-  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px -12px rgb(0 0 0 / 0.6);
-  --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.3), 0 18px 40px -16px rgb(0 0 0 / 0.7);
+    --bg: #000000;
+    --surface: #0d0d0d;
+    --surface-2: #141414;
+    --surface-sunk: #080808;
+    --border: #2b2b2b;
+    --border-strong: #4a4a4a;
+    --text: #ffffff;
+    --text-2: #d0d0d0;
+    --muted: #a0a0a0;
+    --blue: #ffffff;
+    --blue-hover: #d9d9d9;
+    --blue-soft: #1c1c1c;
+    --on-blue: #000000;
+    --ring: rgb(255 255 255 / 0.45);
+    --amber: #e6e6e6;
+    --amber-soft: #161616;
+    --amber-line: #666666;
+    --red: #ffffff;
+    --red-soft: #1a1a1a;
+    --green: #ffffff;
+    --green-soft: #1a1a1a;
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.5), 0 8px 24px -12px rgb(0 0 0 / 0.8);
+    --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.5), 0 18px 40px -16px rgb(0 0 0 / 0.9);
 }
 
 /* ------------------------------------------------------------------ base */
@@ -132,8 +136,8 @@ a { color: var(--blue); }
   isolation: isolate;
   color: #fff;
   background:
-    radial-gradient(900px 420px at 85% -10%, rgb(42 86 245 / 0.55), transparent 65%),
-    radial-gradient(700px 380px at 0% 110%, rgb(22 50 122 / 0.9), transparent 70%),
+    radial-gradient(900px 420px at 85% -10%, rgb(255 255 255 / 0.14), transparent 65%),
+    radial-gradient(700px 380px at 0% 110%, rgb(255 255 255 / 0.07), transparent 70%),
     linear-gradient(170deg, var(--navy-900), var(--navy-950));
   padding-bottom: 132px;
   overflow: hidden;
@@ -145,7 +149,7 @@ body[data-view="saved"] .hero { padding-bottom: 72px; }
 /* Slow-drifting line map: coloured routes meeting at stations. */
 .hero-map {
   position: absolute; inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' fill='none' stroke='white' stroke-opacity='.11' stroke-width='2' stroke-linejoin='round'%3E%3Cpath d='M0 220h120l40-40h110l40 40h90'/%3E%3Cpath d='M0 90h80l40 40h140l40-40h100'/%3E%3Cpath d='M200 0v60l30 30v90l-30 30v90'/%3E%3Cg fill='%230a1733' stroke-opacity='.3'%3E%3Ccircle cx='120' cy='220' r='5'/%3E%3Ccircle cx='310' cy='220' r='5'/%3E%3Ccircle cx='80' cy='90' r='5'/%3E%3Ccircle cx='300' cy='90' r='5'/%3E%3Ccircle cx='200' cy='60' r='5'/%3E%3Ccircle cx='230' cy='180' r='5'/%3E%3C/g%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' fill='none' stroke='white' stroke-opacity='.11' stroke-width='2' stroke-linejoin='round'%3E%3Cpath d='M0 220h120l40-40h110l40 40h90'/%3E%3Cpath d='M0 90h80l40 40h140l40-40h100'/%3E%3Cpath d='M200 0v60l30 30v90l-30 30v90'/%3E%3Cg fill='%23000000' stroke-opacity='.3'%3E%3Ccircle cx='120' cy='220' r='5'/%3E%3Ccircle cx='310' cy='220' r='5'/%3E%3Ccircle cx='80' cy='90' r='5'/%3E%3Ccircle cx='300' cy='90' r='5'/%3E%3Ccircle cx='200' cy='60' r='5'/%3E%3Ccircle cx='230' cy='180' r='5'/%3E%3C/g%3E%3C/svg%3E");
   background-size: 400px 300px;
   mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%);
   animation: drift 90s linear infinite;
@@ -186,8 +190,8 @@ body[data-view="saved"] .hero { padding-bottom: 72px; }
 .site-header { padding: 18px 0 0; }
 .site-header .wrap { display: flex; align-items: center; gap: 12px 20px; flex-wrap: wrap; }
 .brand { display: inline-flex; align-items: center; gap: 10px; color: #fff; text-decoration: none; font-weight: 700; font-size: 1.25rem; letter-spacing: -0.02em; }
-.brand-mark { width: 34px; height: 34px; border-radius: 11px; background: var(--blue); display: grid; place-items: center; box-shadow: 0 6px 18px -6px rgb(42 86 245 / 0.9); }
-.brand-mark svg { width: 20px; height: 20px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.brand-mark { width: 34px; height: 34px; border-radius: 11px; background: #fff; display: grid; place-items: center; }
+.brand-mark svg { width: 20px; height: 20px; fill: none; stroke: #000; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .tabs { display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: rgb(255 255 255 / 0.08); border: 1px solid rgb(255 255 255 / 0.12); margin-left: 8px; }
 .tabs a {
   padding: 8px 18px; border-radius: 999px; color: rgb(255 255 255 / 0.78); text-decoration: none; font-size: 0.9375rem; font-weight: 550;
@@ -203,15 +207,15 @@ body[data-view="saved"] .hero { padding-bottom: 72px; }
 }
 .pill-btn:hover { background: rgb(255 255 255 / 0.12); }
 .pill-btn.solid { background: #fff; color: var(--navy-900); border-color: #fff; }
-.pill-btn.solid:hover { background: #e6ecff; }
+.pill-btn.solid:hover { background: #d9d9d9; }
 .pill-btn.icon-only { width: 44px; padding: 0; }
 
 .hero-copy { padding: 56px 0 0; max-width: 720px; }
-.eyebrow { display: inline-flex; align-items: center; gap: 8px; font: 600 0.75rem/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: #9fb6ff; }
-.eyebrow::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #3ddc97; box-shadow: 0 0 0 4px rgb(61 220 151 / 0.2); animation: signal 2.4s ease-in-out infinite; }
-@keyframes signal { 50% { box-shadow: 0 0 0 8px rgb(61 220 151 / 0); } }
+.eyebrow { display: inline-flex; align-items: center; gap: 8px; font: 600 0.75rem/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: #bdbdbd; }
+.eyebrow::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 4px rgb(255 255 255 / 0.2); animation: signal 2.4s ease-in-out infinite; }
+@keyframes signal { 50% { box-shadow: 0 0 0 8px rgb(255 255 255 / 0); } }
 .hero h1 { margin-top: 18px; font-size: clamp(2.25rem, 5.4vw, 3.9rem); line-height: 1.04; letter-spacing: -0.035em; font-weight: 750; text-wrap: balance; }
-.hero h1 em { font-style: normal; background: linear-gradient(90deg, #8fb0ff, #c8d6ff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hero h1 em { font-style: normal; background: linear-gradient(90deg, #ffffff, #9a9a9a); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .hero-sub { margin-top: 16px; max-width: 54ch; color: rgb(255 255 255 / 0.74); font-size: 1.0625rem; }
 body[data-view="saved"] .hero-copy { padding-top: 36px; }
 body[data-view="saved"] .hero h1, body[data-view="saved"] .hero-sub, body[data-view="saved"] .hero-copy .eyebrow { display: none; }
@@ -252,7 +256,7 @@ input::placeholder { color: var(--muted); opacity: 0.8; font-weight: 400; }
 input:hover { border-color: var(--border-strong); }
 input:focus { outline: none; border-color: var(--blue); background: var(--surface); box-shadow: 0 0 0 4px var(--ring); }
 input[aria-invalid="true"] { border-color: var(--red); background: var(--red-soft); }
-input[aria-invalid="true"]:focus { box-shadow: 0 0 0 4px rgb(179 38 30 / 0.2); }
+input[aria-invalid="true"]:focus { box-shadow: 0 0 0 4px rgb(0 0 0 / 0.2); }
 input[type="date"], input[type="time"] { font-variant-numeric: tabular-nums; }
 input[type="radio"] { accent-color: var(--blue); }
 .hint { margin-top: 6px; font-size: 0.8125rem; color: var(--muted); }
@@ -337,7 +341,7 @@ input[type="radio"] { accent-color: var(--blue); }
 .retry {
   margin-left: auto; min-height: 38px; padding: 0 16px; border-radius: 999px; border: 1.5px solid currentColor; background: transparent; color: inherit; font-weight: 650; font-size: 0.875rem; transition: background 0.2s;
 }
-.retry:hover { background: rgb(179 38 30 / 0.1); }
+.retry:hover { background: rgb(0 0 0 / 0.08); }
 
 .panel {
   margin-top: 16px; padding: 24px; border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-card);
@@ -484,7 +488,7 @@ input[type="radio"] { accent-color: var(--blue); }
 
 /* ------------------------------------------------------------------ sign-in dialog */
 dialog { width: min(560px, calc(100% - 32px)); padding: 0; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); color: var(--text); box-shadow: var(--shadow-lift); }
-dialog::backdrop { background: rgb(6 15 38 / 0.6); backdrop-filter: blur(4px); }
+dialog::backdrop { background: rgb(0 0 0 / 0.65); backdrop-filter: blur(4px); }
 dialog[open] { animation: pop 0.2s var(--ease); }
 .dialog-head { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px 0; }
 .dialog-head h2 { font-size: 1.25rem; letter-spacing: -0.02em; }
@@ -563,3 +567,11 @@ body[data-view="saved"] #saved-status:empty { display: none; }
 .hero-copy .hero-sub { max-width: 54ch; }
 .submit-row { align-self: start; margin-top: 28px; }
 @media (max-width: 960px) { .submit-row { margin-top: 0; } }
+
+/* Monochrome: errors and warnings are told apart by weight and line style, not colour. */
+input[aria-invalid="true"] { border-width: 2.5px; }
+#status.error, #saved-status.error { border: 2px solid var(--text); }
+.journey-warnings li, .search-warnings li { border-style: dashed; }
+.field-error::before, .station-error::before { color: var(--surface); }
+:root[data-theme="dark"] .retry:hover { background: rgb(255 255 255 / 0.12); }
+.hero :focus-visible { outline-color: #fff; }
