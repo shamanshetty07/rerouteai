@@ -575,3 +575,11 @@ input[aria-invalid="true"] { border-width: 2.5px; }
 .field-error::before, .station-error::before { color: var(--surface); }
 :root[data-theme="dark"] .retry:hover { background: rgb(255 255 255 / 0.12); }
 .hero :focus-visible { outline-color: #fff; }
+
+/* Keep the train and track in the visible band of the hero instead of behind the search card. */
+.hero-track { bottom: 100px; }
+body[data-view="saved"] .hero-track { bottom: 0; }
+@media (max-width: 720px) { .hero-track { bottom: 84px; } }
+.hero { padding-bottom: 200px; }
+body[data-view="saved"] .hero { padding-bottom: 96px; }
+@media (max-width: 720px) { .hero { padding-bottom: 196px; } body[data-view="saved"] .hero { padding-bottom: 96px; } }
