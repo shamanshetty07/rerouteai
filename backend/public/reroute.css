@@ -191,7 +191,8 @@ body[data-view="saved"] .hero { padding-bottom: 72px; }
 .site-header .wrap { display: flex; align-items: center; gap: 12px 20px; flex-wrap: wrap; }
 .brand { display: inline-flex; align-items: center; gap: 10px; color: #fff; text-decoration: none; font-weight: 700; font-size: 1.25rem; letter-spacing: -0.02em; }
 .brand-mark { width: 34px; height: 34px; border-radius: 11px; background: #fff; display: grid; place-items: center; }
-.brand-mark svg { width: 20px; height: 20px; fill: none; stroke: #000; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.brand-mark svg { width: 26px; height: 26px; fill: none; stroke: #000; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+.brand-mark .dot { fill: #000; stroke: none; }
 .tabs { display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: rgb(255 255 255 / 0.08); border: 1px solid rgb(255 255 255 / 0.12); margin-left: 8px; }
 .tabs a {
   padding: 8px 18px; border-radius: 999px; color: rgb(255 255 255 / 0.78); text-decoration: none; font-size: 0.9375rem; font-weight: 550;
@@ -583,3 +584,20 @@ body[data-view="saved"] .hero-track { bottom: 0; }
 .hero { padding-bottom: 200px; }
 body[data-view="saved"] .hero { padding-bottom: 96px; }
 @media (max-width: 720px) { .hero { padding-bottom: 196px; } body[data-view="saved"] .hero { padding-bottom: 96px; } }
+
+/* ------------------------------------------------------------------ extra train motion */
+/* A distant freight-style train runs the opposite way on a far track, slower and fainter, for depth. */
+.far-track { position: absolute; left: 0; right: 0; bottom: 190px; height: 28px; opacity: 0.55; }
+.far-train { position: absolute; top: 0; left: 0; width: 520px; height: 28px; animation: cruise-back 70s linear infinite; }
+.far-train svg { display: block; width: 100%; height: 100%; }
+@keyframes cruise-back { from { transform: translateX(100vw); } to { transform: translateX(-540px); } }
+/* The main train gets a gentle rocking and a headlight glow. */
+.hero-train svg { animation: rock 0.9s ease-in-out infinite alternate; transform-origin: 50% 100%; filter: drop-shadow(18px 0 14px rgb(255 255 255 / 0.18)); }
+@keyframes rock { from { transform: translateY(0); } to { transform: translateY(-1px) rotate(0.06deg); } }
+
+body[data-view="saved"] .far-track { display: none; }
+@media (max-width: 720px) { .far-track { bottom: 170px; } }
+@media (prefers-reduced-motion: reduce) {
+  .far-train { animation: none; transform: translateX(12vw); }
+  .hero-train svg { animation: none; }
+}

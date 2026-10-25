@@ -1,10 +1,11 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="light dark">
+<meta name="color-scheme" content="dark light">
 <title>Reroute · Find another way there</title>
+<link rel="icon" href="/logo.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/reroute.css">
 </head>
 <body>
@@ -29,6 +30,27 @@
 <div class="hero">
   <div class="hero-art" aria-hidden="true">
     <div class="hero-map"></div>
+    <div class="far-track">
+      <div class="far-train">
+        <svg viewBox="0 0 520 28" fill="none">
+          <g stroke="#fff" stroke-opacity=".3" stroke-width="1">
+            <rect x="2" y="4" width="90" height="18" rx="4" fill="#0a0a0a"/>
+            <rect x="96" y="4" width="90" height="18" rx="4" fill="#0a0a0a"/>
+            <rect x="190" y="4" width="90" height="18" rx="4" fill="#0a0a0a"/>
+            <rect x="284" y="4" width="90" height="18" rx="4" fill="#0a0a0a"/>
+            <rect x="378" y="4" width="90" height="18" rx="4" fill="#0a0a0a"/>
+            <path d="M472 22V8q0-4 4-4h20q14 0 22 14v4z" fill="#fff" fill-opacity=".85"/>
+          </g>
+          <g fill="#fff" fill-opacity=".55">
+            <rect x="10" y="9" width="10" height="6" rx="1"/><rect x="26" y="9" width="10" height="6" rx="1"/><rect x="42" y="9" width="10" height="6" rx="1"/><rect x="58" y="9" width="10" height="6" rx="1"/><rect x="74" y="9" width="10" height="6" rx="1"/>
+            <rect x="104" y="9" width="10" height="6" rx="1"/><rect x="120" y="9" width="10" height="6" rx="1"/><rect x="136" y="9" width="10" height="6" rx="1"/><rect x="152" y="9" width="10" height="6" rx="1"/><rect x="168" y="9" width="10" height="6" rx="1"/>
+            <rect x="198" y="9" width="10" height="6" rx="1"/><rect x="214" y="9" width="10" height="6" rx="1"/><rect x="230" y="9" width="10" height="6" rx="1"/><rect x="246" y="9" width="10" height="6" rx="1"/><rect x="262" y="9" width="10" height="6" rx="1"/>
+            <rect x="292" y="9" width="10" height="6" rx="1"/><rect x="308" y="9" width="10" height="6" rx="1"/><rect x="324" y="9" width="10" height="6" rx="1"/><rect x="340" y="9" width="10" height="6" rx="1"/><rect x="356" y="9" width="10" height="6" rx="1"/>
+          </g>
+          <rect x="0" y="25" width="520" height="2" fill="#fff" fill-opacity=".35"/>
+        </svg>
+      </div>
+    </div>
     <div class="hero-track">
       <div class="masts"></div>
       <div class="hero-train">
@@ -60,7 +82,7 @@
   <header class="site-header">
     <div class="wrap">
       <a class="brand" href="#search" aria-label="Reroute home">
-        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M6 15.8V12a4 4 0 0 1 4-4h4"/></svg></span>
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 64 64"><path d="M20 40V28a12 12 0 0 1 24 0v12a3 3 0 0 1-3 3H23a3 3 0 0 1-3-3z"/><path d="M25 27h14"/><path d="M14 51c6 5 30 5 36 0"/><circle class="dot" cx="26.5" cy="36" r="2"/><circle class="dot" cx="37.5" cy="36" r="2"/><circle class="dot" cx="14" cy="51" r="2.2"/><circle class="dot" cx="50" cy="51" r="2.2"/></svg></span>
         Reroute
       </a>
       <nav class="tabs" aria-label="Sections">
